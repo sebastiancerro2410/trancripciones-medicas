@@ -19,8 +19,6 @@ def extraer_vista_previa(docx_bytes):
     for el in doc.element.body:
         if el.tag == qn('w:p'):
             tiene_imagen = len(el.findall('.//' + qn('w:drawing'))) > 0
-            # Solo runs directos del párrafo (evita duplicados por marcas de
-            # control de cambios de Word que a veces trae el documento original)
             texto = ''.join(
                 t.text or '' for r in el.findall(qn('w:r')) for t in [r.find(qn('w:t'))] if t is not None
             ).strip()
@@ -68,7 +66,6 @@ def _llenar_campo(tpl_body, etiqueta_texto, valor):
                 return
 
 
-# --- FUNCIÓN: Unir informe renal del Dr. Quijada con la plantilla institucional ---
 def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, medico_referente=None, cedula=None):
     """Une un documento Word del Dr. Quijada (hallazgos + imágenes) con la
     plantilla institucional de Gammagrama Renal. No usa IA: solo copia
@@ -96,7 +93,6 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
 
     insert_elements = [content_body[i] for i in range(paciente_idx + 1, atentamente_idx)]
 
-    # Copiar imágenes referenciadas y re-mapear sus relaciones a la plantilla
     rid_map = {}
     for el in insert_elements:
         for blip in el.findall('.//' + qn('a:blip')):
@@ -136,7 +132,6 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
     for new_el in new_elements:
         sig_el.addprevious(new_el)
 
-    # Nombre del paciente -> encabezado de la plantilla
     nombre_paciente = None
     m_nombre = re.search(r'Paciente:\s*([^.:]+?)\.', ''.join(content_body[paciente_idx].itertext()))
     if m_nombre:
@@ -151,7 +146,6 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
                         break
                 break
 
-    # Credenciales M.S.A.S. / C.M. -> debajo de la firma, solo si aparecen en el documento
     texto_completo = '\n'.join(''.join(el.itertext()) for el in content_body if el.tag == qn('w:p'))
     credenciales = []
     for patron in [r'M\.S\.A\.S\.?\s*\d+', r'C\.M\.?\s*\d+']:
@@ -176,7 +170,6 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
             credential_style_p.addnext(nuevo_p)
             credential_style_p = nuevo_p
 
-    # Datos adicionales opcionales (Fecha De Estudio, Medico Referente, Cedula)
     if fecha_estudio:
         _llenar_campo(tpl_body, 'Fecha De Estudio', fecha_estudio)
     if medico_referente:
@@ -190,14 +183,12 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
     return buffer, nombre_paciente
 
 
-# --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
     page_title="Medicina Nuclear - Sistema de Transcripción",
     page_icon="🏥",
     layout="wide"
 )
 
-# --- BANNER Y LOGO ---
 with open("logo.png", "rb") as image_file:
     logo_base64 = base64.b64encode(image_file.read()).decode()
 
@@ -219,7 +210,6 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Estilos
 st.markdown("""
     <style>
     .main-title { font-size: 28px; font-weight: bold; color: #ebe20e; }
@@ -231,7 +221,6 @@ st.markdown("""
 st.markdown('<div class="main-title"> Unidad de Medicina Nuclear</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Panel de Transcripción y Estructuración de Informes Médicos</div>', unsafe_allow_html=True)
 
-# Barra Lateral
 st.sidebar.header("🔑 Claves de API")
 openai_key = st.sidebar.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
 gemini_key = st.sidebar.text_input("Gemini API Key", type="password", value=os.getenv("GEMINI_API_KEY", ""))
@@ -239,56 +228,129 @@ gemini_key = st.sidebar.text_input("Gemini API Key", type="password", value=os.g
 tipo_estudio = st.sidebar.selectbox("Selecciona el estudio:", ["Gammagrafía Ósea", "Gammagrafía Tiroidea", "Rastreo Corporal Total", "Gammagrafía Renal (DTPA/DMSA)", "Plantilla Libre"])
 
 PLANTILLAS = {
-    "Gammagrafía Ósea": "INFORMACIÓN DEL ESTUDIO: GAMMAGRAFÍA ÓSEA\n[DATOS DEL PACIENTE]\nMÉDICO REFIERENTE:\nINDICACIÓN:\n\nTÉCNICA:\nSe administró radiofármaco por vía endovenosa. Se obtuvieron imágenes planares en proyecciones anterior y posterior.\n\nHALLAZGOS:\n- Captación ósea:\n- Lesiones focales:\n\nCONCLUSIÓN:",
+    "Gammagrafía Ósea": """I. DATOS TÉCNICOS
+
+- Estudio: Rastreo corporal óseo
+- Radiofármaco: MDP (Metilendifosfonato) marcado con Tc-99m (Tecnecio)
+- Actividad administrada: 20 mCi
+- Vía de administración: Endovenosa
+- Equipo: Gammacámara Elscint Apex 409 AG
+- Proyecciones obtenidas: Anterior y posterior de cuerpo entero
+- Calidad técnica del estudio: Sin obstrucciones
+
+
+II. ANTECEDENTES CLÍNICOS
+Historia clínica, gammagramas previos, motivo de estudio
+
+
+III. HALLAZGOS
+Se realizó gammagrafía ósea total, observándose la distribución del radiofármaco en las siguientes regiones:
+
+Vista anterior (proyección ANT)
+- Cráneo y macizo facial:
+- Escápulas y esternón:
+- Parrilla costal anterior:
+- Miembros superiores:
+- Pelvis:
+- Miembros inferiores:
+
+Vista posterior (proyección POST)
+- Columna vertebral:
+- Pelvis posterior:
+- Parrilla costal posterior y escápulas:
+- Cráneo posterior:
+- Sistema renal y tejidos blandos:
+
+
+IV. CONCLUSIÓN DIAGNÓSTICO
+""",
     "Gammagrafía Tiroidea": "INFORMACIÓN DEL ESTUDIO: GAMMAGRAFÍA TIROIDEA\n[DATOS DEL PACIENTE]\nINDICACIÓN:\n\nHALLAZGOS:\n- Glándula tiroides de morfología y ubicación:\n- Captación del trazador:\n- Nódulos / Lesiones:\n\nCONCLUSIÓN:",
     "Rastreo Corporal Total": "INFORMACIÓN DEL ESTUDIO: RASTREO CORPORAL TOTAL\n[DATOS DEL PACIENTE]\nINDICACIÓN:\n\nHALLAZGOS:\n- Áreas de hipercaptación fisiológica y patológica:\n\nCONCLUSIÓN:",
     "Gammagrafía Renal (DTPA/DMSA)": "INFORMACIÓN DEL ESTUDIO: GAMMAGRAFÍA RENAL\n[DATOS DEL PACIENTE]\nINDICACIÓN:\n\nHALLAZGOS:\n- Perfusión y función renal izquierda:\n- Perfusión y función renal derecha:\n- Excreción / Función relativa:\n\nCONCLUSIÓN:",
     "Plantilla Libre": "Insertar informe médico estructurado."
 }
 
+INSTRUCCIONES_ESTRICTAS_OSEA = """
+REGLAS ADICIONALES OBLIGATORIAS PARA ESTE INFORME (Gammagrafía Ósea):
+1. Respeta EXACTAMENTE la estructura de la plantilla: I. DATOS TÉCNICOS, II. ANTECEDENTES CLÍNICOS, III. HALLAZGOS (con sus dos subsecciones "Vista anterior (proyección ANT)" y "Vista posterior (proyección POST)", cada una con sus mismos ítems en el mismo orden), y IV. CONCLUSIÓN DIAGNÓSTICO.
+2. NO fusiones, elimines, renombres ni reordenes ninguna subsección o ítem de "Vista anterior" ni de "Vista posterior", aunque el dictado los mencione en otro orden o de forma mezclada. Coloca cada hallazgo dictado en el ítem anatómico que le corresponda.
+3. En "I. DATOS TÉCNICOS", los valores ya vienen fijos en la plantilla (radiofármaco, actividad, vía, equipo, proyecciones, calidad técnica). Mantenlos tal cual salvo que el dictado mencione explícitamente un valor distinto para ese campo puntual; en ese caso, usa el valor del dictado solo para ese campo.
+4. Si un ítem de "Vista anterior" o "Vista posterior" no fue mencionado en el dictado, escribe exactamente "No especificado" en ese ítem. No lo dejes vacío y no inventes hallazgos.
+5. No agregues secciones, encabezados ni comentarios que no estén en la plantilla original.
+"""
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.subheader("1. Cargar Dictado en Audio")
-    audio_file = st.file_uploader("Arrastra el audio (.ogg, .mp3, .opus, .wav, .m4a)", type=["ogg", "mp3", "opus", "wav", "m4a"])
-    if audio_file:
-        st.audio(audio_file)
-        if audio_file.size < 20_000:
-            st.warning("⚠️ Este audio parece muy corto o vacío (pesa muy poco). Puede que la transcripción salga incompleta. Igual se puede intentar procesar.")
-    plantilla_actual = st.text_area("Plantilla a completar:", value=PLANTILLAS[tipo_estudio], height=220)
+    st.caption("Puedes subir más de un audio si el médico envió varios para el mismo paciente (se combinan antes de generar el informe).")
+    audio_files = st.file_uploader(
+        "Arrastra el audio o los audios (.ogg, .mp3, .opus, .wav, .m4a)",
+        type=["ogg", "mp3", "opus", "wav", "m4a"],
+        accept_multiple_files=True
+    )
+    if audio_files:
+        for i, af in enumerate(audio_files, start=1):
+            st.write(f"Audio {i}: {af.name}")
+            st.audio(af)
+            if af.size < 20_000:
+                st.warning(f"⚠️ El audio {i} ({af.name}) parece muy corto o vacío. Puede que la transcripción salga incompleta.")
+    plantilla_actual = st.text_area("Plantilla a completar:", value=PLANTILLAS[tipo_estudio], height=320 if tipo_estudio == "Gammagrafía Ósea" else 220)
 
 with col2:
     caja_resultados = st.container(border=True)
     with caja_resultados:
         st.subheader("2. Informe Final Generado")
-        if not audio_file: st.info("Sube un audio a la izquierda para comenzar.")
+        if not audio_files: st.info("Sube uno o más audios a la izquierda para comenzar.")
 
-if audio_file and st.button("🚀 Procesar e Generar Informe"):
+if audio_files and st.button("🚀 Procesar e Generar Informe"):
     if not openai_key or not gemini_key:
         st.error("⚠️ Ingrese ambas API Keys en la barra lateral.")
     else:
-        with st.spinner("🎧 Transcribiendo con Whisper..."):
-            ext = audio_file.name.split('.')[-1].lower()
-            if ext == 'opus': ext = 'ogg'
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
-                tmp.write(audio_file.read())
-                tmp_path = tmp.name
-            try:
-                client_openai = openai.OpenAI(api_key=openai_key)
-                with open(tmp_path, "rb") as f:
-                    transcript = client_openai.audio.transcriptions.create(model="whisper-1", file=f, language="es")
-                texto_transcrito = transcript.text
-                os.remove(tmp_path)
-            except Exception as e:
-                st.error(f"Error al transcribir: {e}")
-                texto_transcrito = None
+        transcripciones = []
+        client_openai = openai.OpenAI(api_key=openai_key)
+        with st.spinner(f"🎧 Transcribiendo {len(audio_files)} audio(s) con Whisper..."):
+            for i, af in enumerate(audio_files, start=1):
+                ext = af.name.split('.')[-1].lower()
+                if ext == 'opus': ext = 'ogg'
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+                    tmp.write(af.read())
+                    tmp_path = tmp.name
+                try:
+                    with open(tmp_path, "rb") as f:
+                        transcript = client_openai.audio.transcriptions.create(model="whisper-1", file=f, language="es")
+                    transcripciones.append(transcript.text)
+                except Exception as e:
+                    st.error(f"Error al transcribir el audio {i} ({af.name}): {e}")
+                finally:
+                    os.remove(tmp_path)
 
-        if texto_transcrito:
-            with st.expander("Ver texto crudo"): st.write(texto_transcrito)
+        if transcripciones:
+            # Combina todos los audios en un solo texto, etiquetando cada parte
+            texto_transcrito = "\n\n".join(
+                f"[Audio {i}]\n{texto}" for i, texto in enumerate(transcripciones, start=1)
+            )
+            with st.expander("Ver texto crudo (todos los audios)"): st.write(texto_transcrito)
             with st.spinner("🤖 Organizando informe con Gemini..."):
                 try:
                     client_gemini = genai.Client(api_key=gemini_key)
-                    prompt = f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado. Si un campo de la plantilla no fue mencionado, escribe exactamente 'No especificado' en ese campo, nunca lo completes con información supuesta. Usa negritas (Markdown **) para los títulos. DICTADO: {texto_transcrito} PLANTILLA: {plantilla_actual}"
+                    instrucciones_extra = INSTRUCCIONES_ESTRICTAS_OSEA if tipo_estudio == "Gammagrafía Ósea" else ""
+                    nota_multi_audio = (
+                        "\nNOTA: El dictado puede venir dividido en varios audios (marcados como [Audio 1], [Audio 2], etc.) "
+                        "del mismo paciente. Combina la información de todos ellos en un solo informe coherente, "
+                        "sin repetir datos duplicados ni mencionar que venían separados en audios distintos.\n"
+                        if len(transcripciones) > 1 else ""
+                    )
+                    prompt = (
+                        f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
+                        f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado. "
+                        f"Si un campo de la plantilla no fue mencionado, escribe exactamente 'No especificado' en ese campo, "
+                        f"nunca lo completes con información supuesta. Usa negritas (Markdown **) para los títulos."
+                        f"{nota_multi_audio}"
+                        f"{instrucciones_extra}\n"
+                        f"DICTADO: {texto_transcrito}\n"
+                        f"PLANTILLA:\n{plantilla_actual}"
+                    )
                     response = client_gemini.models.generate_content(
                         model="gemini-3.5-flash",
                         contents=prompt
@@ -306,7 +368,6 @@ if audio_file and st.button("🚀 Procesar e Generar Informe"):
                 except Exception as e:
                     st.error(f"Error al estructurar: {e}")
 
-# --- SECCIÓN: Unir informe renal del Dr. Quijada con la plantilla ---
 st.markdown("---")
 st.header("📎 Unir Informe Renal (Dr. Quijada) con Plantilla")
 st.markdown("Sube el documento Word que envía el Dr. Quijada (con sus hallazgos e imágenes) y la app lo une automáticamente con la plantilla institucional. No usa IA, por lo que no necesita las claves de API.")
@@ -316,7 +377,7 @@ doc_quijada = st.file_uploader("Documento del Dr. Quijada (.docx)", type=["docx"
 if doc_quijada:
     try:
         _doc_check = Document(doc_quijada)
-        doc_quijada.seek(0)  # devolver el puntero al inicio para que se pueda volver a leer después
+        doc_quijada.seek(0)
         _texto_check = '\n'.join(''.join(p.itertext()) for p in _doc_check.element.body if p.tag == qn('w:p'))
         if 'Paciente:' not in _texto_check:
             st.warning("⚠️ No se encontró la línea 'Paciente:' en este documento. Revísalo antes de continuar, la unión podría fallar o quedar incompleta.")
@@ -373,9 +434,6 @@ if st.session_state.get("preview_bytes"):
             st.session_state.pop("preview_nombre", None)
             st.rerun()
 
-
-
-# --- SECCIÓN: Historial de Informes ---
 st.markdown("---")
 st.header("📁 Historial de Informes")
 st.markdown("Todos los informes generados (de audio o unidos con el Dr. Quijada) quedan guardados aquí automáticamente. Puedes buscar, renombrar o borrar cualquiera.")
@@ -394,7 +452,6 @@ if archivos_historial:
         es_word = nombre_archivo.endswith(".docx")
         icono = "📄" if es_word else "📝"
 
-        # Intentar leer fecha desde el nombre del archivo (formato AAAA-MM-DD_HH-MM-SS_...)
         fecha_legible = ""
         partes = nombre_archivo.split("_", 2)
         if len(partes) >= 2:
@@ -427,7 +484,6 @@ if archivos_historial:
                     st.session_state["confirmar_borrado"] = nombre_archivo
                     st.session_state.pop("renombrando", None)
 
-            # --- Flujo de renombrado ---
             if st.session_state.get("renombrando") == nombre_archivo:
                 extension = os.path.splitext(nombre_archivo)[1]
                 nombre_sin_ext = os.path.splitext(nombre_archivo)[0]
@@ -445,7 +501,6 @@ if archivos_historial:
                         st.session_state.pop("renombrando", None)
                         st.rerun()
 
-            # --- Flujo de confirmación de borrado ---
             if st.session_state.get("confirmar_borrado") == nombre_archivo:
                 st.warning(f"¿Seguro que quieres borrar '{nombre_archivo}'? Esta acción no se puede deshacer.")
                 col_si, col_no = st.columns(2)
