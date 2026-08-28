@@ -8,6 +8,7 @@ import copy
 import io
 import re
 import datetime
+import time
 from docx import Document
 from docx.oxml.ns import qn
 
@@ -275,7 +276,7 @@ REGLAS ADICIONALES OBLIGATORIAS PARA ESTE INFORME (Gammagrafía Ósea):
 1. Respeta EXACTAMENTE la estructura de la plantilla: I. DATOS TÉCNICOS, II. ANTECEDENTES CLÍNICOS, III. HALLAZGOS (con sus dos subsecciones "Vista anterior (proyección ANT)" y "Vista posterior (proyección POST)", cada una con sus mismos ítems en el mismo orden), y IV. CONCLUSIÓN DIAGNÓSTICO.
 2. NO fusiones, elimines, renombres ni reordenes ninguna subsección o ítem de "Vista anterior" ni de "Vista posterior", aunque el dictado los mencione en otro orden o de forma mezclada. Coloca cada hallazgo dictado en el ítem anatómico que le corresponda.
 3. En "I. DATOS TÉCNICOS", los valores ya vienen fijos en la plantilla (radiofármaco, actividad, vía, equipo, proyecciones, calidad técnica). Mantenlos tal cual salvo que el dictado mencione explícitamente un valor distinto para ese campo puntual; en ese caso, usa el valor del dictado solo para ese campo.
-4. Si un ítem de "Vista anterior" o "Vista posterior" no fue mencionado en el dictado, escribe exactamente "No especificado" en ese ítem. No lo dejes vacío y no inventes hallazgos.
+4. Si un ítem de "Vista anterior" o "Vista posterior" no fue mencionado en el dictado, escribe exactamente "Dentro de límites normales" en ese ítem. No lo dejes vacío y no inventes hallazgos.
 5. No agregues secciones, encabezados ni comentarios que no estén en la plantilla original.
 """
 
@@ -307,23 +308,33 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
     if not openai_key or not gemini_key:
         st.error("⚠️ Ingrese ambas API Keys en la barra lateral.")
     else:
+        # --- Barra de progreso general ---
+        barra_progreso = st.progress(0, text="Iniciando...")
+
         transcripciones = []
         client_openai = openai.OpenAI(api_key=openai_key)
-        with st.spinner(f"🎧 Transcribiendo {len(audio_files)} audio(s) con Whisper..."):
-            for i, af in enumerate(audio_files, start=1):
-                ext = af.name.split('.')[-1].lower()
-                if ext == 'opus': ext = 'ogg'
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
-                    tmp.write(af.read())
-                    tmp_path = tmp.name
-                try:
-                    with open(tmp_path, "rb") as f:
-                        transcript = client_openai.audio.transcriptions.create(model="whisper-1", file=f, language="es")
-                    transcripciones.append(transcript.text)
-                except Exception as e:
-                    st.error(f"Error al transcribir el audio {i} ({af.name}): {e}")
-                finally:
-                    os.remove(tmp_path)
+        total_audios = len(audio_files)
+
+        for i, af in enumerate(audio_files, start=1):
+            # La transcripción ocupa el primer 60% de la barra
+            porcentaje = int((i - 1) / total_audios * 60)
+            barra_progreso.progress(porcentaje, text=f"🎧 Transcribiendo audio {i} de {total_audios}...")
+
+            ext = af.name.split('.')[-1].lower()
+            if ext == 'opus': ext = 'ogg'
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+                tmp.write(af.read())
+                tmp_path = tmp.name
+            try:
+                with open(tmp_path, "rb") as f:
+                    transcript = client_openai.audio.transcriptions.create(model="whisper-1", file=f, language="es")
+                transcripciones.append(transcript.text)
+            except Exception as e:
+                st.error(f"Error al transcribir el audio {i} ({af.name}): {e}")
+            finally:
+                os.remove(tmp_path)
+
+        barra_progreso.progress(60, text="🎧 Transcripción completa.")
 
         if transcripciones:
             # Combina todos los audios en un solo texto, etiquetando cada parte
@@ -331,42 +342,73 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                 f"[Audio {i}]\n{texto}" for i, texto in enumerate(transcripciones, start=1)
             )
             with st.expander("Ver texto crudo (todos los audios)"): st.write(texto_transcrito)
-            with st.spinner("🤖 Organizando informe con Gemini..."):
-                try:
-                    client_gemini = genai.Client(api_key=gemini_key)
-                    instrucciones_extra = INSTRUCCIONES_ESTRICTAS_OSEA if tipo_estudio == "Gammagrafía Ósea" else ""
-                    nota_multi_audio = (
-                        "\nNOTA: El dictado puede venir dividido en varios audios (marcados como [Audio 1], [Audio 2], etc.) "
-                        "del mismo paciente. Combina la información de todos ellos en un solo informe coherente, "
-                        "sin repetir datos duplicados ni mencionar que venían separados en audios distintos.\n"
-                        if len(transcripciones) > 1 else ""
-                    )
-                    prompt = (
-                        f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
-                        f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado. "
-                        f"Si un campo de la plantilla no fue mencionado, escribe exactamente 'No especificado' en ese campo, "
-                        f"nunca lo completes con información supuesta. Usa negritas (Markdown **) para los títulos."
-                        f"{nota_multi_audio}"
-                        f"{instrucciones_extra}\n"
-                        f"DICTADO: {texto_transcrito}\n"
-                        f"PLANTILLA:\n{plantilla_actual}"
-                    )
-                    response = client_gemini.models.generate_content(
-                        model="gemini-3.5-flash",
-                        contents=prompt
-                    )
-                    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                    nombre_hist = f"{timestamp}_{tipo_estudio.replace(' ', '_')}.txt"
-                    guardar_en_historial(nombre_hist, response.text)
 
-                    with caja_resultados:
-                        st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
-                        st.markdown(response.text)
-                        st.markdown("---")
-                        st.text_area("Copiar para sistema:", value=response.text, height=200)
-                        st.download_button("📥 Descargar Informe (.txt)", data=response.text, file_name="informe_medico.txt", mime="text/plain")
-                except Exception as e:
-                    st.error(f"Error al estructurar: {e}")
+            try:
+                client_gemini = genai.Client(api_key=gemini_key)
+                instrucciones_extra = INSTRUCCIONES_ESTRICTAS_OSEA if tipo_estudio == "Gammagrafía Ósea" else ""
+                nota_multi_audio = (
+                    "\nNOTA: El dictado puede venir dividido en varios audios (marcados como [Audio 1], [Audio 2], etc.) "
+                    "del mismo paciente. Combina la información de todos ellos en un solo informe coherente, "
+                    "sin repetir datos duplicados ni mencionar que venían separados en audios distintos.\n"
+                    if len(transcripciones) > 1 else ""
+                )
+                prompt = (
+                    f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
+                    f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado. "
+                    f"Si un campo de la plantilla no fue mencionado, escribe exactamente 'Dentro de límites normales' en ese campo, "
+                    f"nunca lo completes con información supuesta. Usa negritas (Markdown **) para los títulos."
+                    f"{nota_multi_audio}"
+                    f"{instrucciones_extra}\n"
+                    f"DICTADO: {texto_transcrito}\n"
+                    f"PLANTILLA:\n{plantilla_actual}"
+                )
+
+                # --- Llamada a Gemini con reintentos automáticos ---
+                MAX_INTENTOS = 4
+                response = None
+                ultimo_error = None
+                for intento in range(MAX_INTENTOS):
+                    # La generación con Gemini ocupa el 60%-95% de la barra
+                    porcentaje = 60 + int((intento / MAX_INTENTOS) * 35)
+                    if intento == 0:
+                        barra_progreso.progress(porcentaje, text="🤖 Organizando informe con Gemini...")
+                    else:
+                        barra_progreso.progress(porcentaje, text=f"⏳ Servidor ocupado, reintentando ({intento + 1}/{MAX_INTENTOS})...")
+                    try:
+                        response = client_gemini.models.generate_content(
+                            model="gemini-3.5-flash",
+                            contents=prompt
+                        )
+                        break
+                    except Exception as err_intento:
+                        ultimo_error = err_intento
+                        if "503" in str(err_intento) or "UNAVAILABLE" in str(err_intento):
+                            if intento < MAX_INTENTOS - 1:
+                                time.sleep(5 * (intento + 1))
+                        else:
+                            raise
+
+                if response is None:
+                    barra_progreso.progress(100, text="❌ No se pudo completar.")
+                    raise ultimo_error
+
+                barra_progreso.progress(95, text="💾 Guardando informe...")
+
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                nombre_hist = f"{timestamp}_{tipo_estudio.replace(' ', '_')}.txt"
+                guardar_en_historial(nombre_hist, response.text)
+
+                barra_progreso.progress(100, text="✅ ¡Listo!")
+
+                with caja_resultados:
+                    st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
+                    st.markdown(response.text)
+                    st.markdown("---")
+                    st.text_area("Copiar para sistema:", value=response.text, height=200)
+                    st.download_button("📥 Descargar Informe (.txt)", data=response.text, file_name="informe_medico.txt", mime="text/plain")
+            except Exception as e:
+                barra_progreso.progress(100, text="❌ Error.")
+                st.error(f"Error al estructurar: {e}")
 
 st.markdown("---")
 st.header("📎 Unir Informe Renal (Dr. Quijada) con Plantilla")
