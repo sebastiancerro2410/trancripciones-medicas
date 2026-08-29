@@ -402,7 +402,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
 
                 with caja_resultados:
                     st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
-                   
+                   A
                 barra_progreso.progress(100, text="❌ Error.")
                 st.error(f"Error al estructurar: {e}")
 
