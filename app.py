@@ -402,11 +402,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
 
                 with caja_resultados:
                     st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
-                    st.markdown(response.text)
-                    texto_limpio = response.text.replace("**", "")
-                    with st.expander("📋 Copiar texto"):
-                        st.code(texto_limpio, language=None, wrap_lines=True)
-            except Exception as e:
+                   
                 barra_progreso.progress(100, text="❌ Error.")
                 st.error(f"Error al estructurar: {e}")
 
