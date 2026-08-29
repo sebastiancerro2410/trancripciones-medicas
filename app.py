@@ -404,6 +404,8 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
                     st.caption("📋 Pasa el mouse sobre el texto y haz clic en el ícono de copiar (arriba a la derecha del cuadro):")
                     st.code(response.text, language=None, wrap_lines=True)
+                    st.markdown("---")
+                    st.markdown(response.text)
             except Exception as e:
                 barra_progreso.progress(100, text="❌ Error.")
                 st.error(f"Error al estructurar: {e}")
