@@ -356,7 +356,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
                     f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado. "
                     f"Si un campo de la plantilla no fue mencionado, escribe exactamente 'Dentro de límites normales' en ese campo, "
-                    f"nunca lo completes con información supuesta. Usa negritas (Markdown **) para los títulos."
+                    f"nunca lo completes con información supuesta. NO uses asteriscos ni ningún símbolo de Markdown (nada de **, *, #, etc.), solo texto plano con los títulos en mayúsculas tal como están en la plantilla."
                     f"{nota_multi_audio}"
                     f"{instrucciones_extra}\n"
                     f"DICTADO: {texto_transcrito}\n"
@@ -402,7 +402,8 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
 
                 with caja_resultados:
                     st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
-                   A
+                    st.code(response.text, language=None, wrap_lines=True)
+            except Exception as e:
                 barra_progreso.progress(100, text="❌ Error.")
                 st.error(f"Error al estructurar: {e}")
 
