@@ -1,6 +1,6 @@
 import streamlit as st
 import openai
-from google import genai
+import google.generativeai as genai
 import os
 import tempfile
 import base64
@@ -368,7 +368,9 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
             with st.expander("Ver texto crudo (todos los audios)"): st.write(texto_transcrito)
 
             try:
-                client_gemini = genai.Client(api_key=gemini_key)
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-pro')
+                
                 instrucciones_extra = INSTRUCCIONES_ESTRICTAS_OSEA if tipo_estudio == "Gammagrafía Ósea" else ""
                 nota_multi_audio = (
                     "\nNOTA: El dictado puede venir dividido en varios audios (marcados como [Audio 1], [Audio 2], etc.) "
@@ -397,10 +399,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     else:
                         barra_progreso.progress(porcentaje, text=f"⏳ Servidor ocupado, reintentando ({intento + 1}/{MAX_INTENTOS})...")
                     try:
-                        response = client_gemini.models.generate_content(
-                            model="gemini-pro",
-                            contents=prompt
-                        )
+                        response = model.generate_content(prompt)
                         break
                     except Exception as err_intento:
                         ultimo_error = err_intento
