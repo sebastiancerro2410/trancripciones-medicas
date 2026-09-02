@@ -416,7 +416,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                         barra_progreso.progress(porcentaje, text=f"⏳ Servidor ocupado, reintentando ({intento + 1}/{MAX_INTENTOS})...")
                     try:
                         response = client_gemini.models.generate_content(
-                            model="gemini-2.5-flash",
+                            model="gemini-3.6-flash",
                             contents=prompt
                         )
                         break
