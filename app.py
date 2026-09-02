@@ -13,8 +13,6 @@ from docx import Document
 from docx.oxml.ns import qn
 
 def extraer_vista_previa(docx_bytes):
-    """Devuelve una lista de líneas de texto (y marcadores de imagen) para
-    mostrar como vista previa, sin necesidad de descargar el archivo."""
     doc = Document(io.BytesIO(docx_bytes))
     lineas = []
     for el in doc.element.body:
@@ -33,7 +31,6 @@ CARPETA_HISTORIAL = "informes_generados"
 os.makedirs(CARPETA_HISTORIAL, exist_ok=True)
 
 def guardar_en_historial(nombre_archivo, contenido_bytes_o_texto):
-    """Guarda una copia del informe generado en la carpeta de historial."""
     ruta = os.path.join(CARPETA_HISTORIAL, nombre_archivo)
     modo = "w" if isinstance(contenido_bytes_o_texto, str) else "wb"
     encoding = "utf-8" if modo == "w" else None
@@ -41,7 +38,6 @@ def guardar_en_historial(nombre_archivo, contenido_bytes_o_texto):
         f.write(contenido_bytes_o_texto)
 
 def _llenar_campo(tpl_body, etiqueta_texto, valor):
-    """Escribe un valor justo después de una etiqueta con ':' en la plantilla."""
     if not valor:
         return
     for el in tpl_body:
@@ -63,7 +59,6 @@ def _llenar_campo(tpl_body, etiqueta_texto, valor):
                 return
 
 def unir_informe_renal(template_path, doc_bytes, fecha_estudio=None, medico_referente=None, cedula=None):
-    """Une un documento Word del Dr. Quijada con la plantilla institucional."""
     tpl_doc = Document(template_path)
     content_doc = Document(doc_bytes)
 
@@ -181,12 +176,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# Carga segura del logo
-logo_html = ""
-if os.path.exists("logo.png"):
-    with open("logo.png", "rb") as image_file:
-        logo_base64 = base64.b64encode(image_file.read()).decode()
-    logo_html = f'<img src="data:image/png;base64,{logo_base64}" width="150">'
+with open("logo.png", "rb") as image_file:
+    logo_base64 = base64.b64encode(image_file.read()).decode()
+logo_html = f'<img src="data:image/png;base64,{logo_base64}" width="150">'
 
 st.markdown(f"""
     <style>
@@ -268,8 +260,8 @@ Vista posterior (proyección POST)
 IV. CONCLUSIÓN DIAGNÓSTICO
 """,
     "Gammagrafía Tiroidea (Tc-99m)": """Paciente: [Nombre del Paciente]
-Edad: [Edad]
-Fecha del estudio: [Fecha del estudio]
+Edad: [Edad] Años.
+Fecha del estudio: [Fecha].
 Médico remitente: [Médico]
 
 I. DATOS TÉCNICOS
@@ -279,28 +271,26 @@ I. DATOS TÉCNICOS
 • Vía de administración: Endovenosa
 • Proyecciones obtenidas: Anterior y oblicuas de la región cervical
 
-
 II. ANTECEDENTES CLÍNICOS
-[Motivo de la evaluación / Historia clínica]
 
+[Motivo de la evaluación / Antecedentes]
 
 III. HALLAZGOS
-[Descripción de la glándula, tamaño, morfología, captación y nódulos]
 
+Se visualiza la glándula tiroidea en su localización anatómica habitual a nivel de la región cervical.
+
+[Descripción de la glándula, tamaño, morfología, distribución y nódulos]
 
 IV. IMPRESIÓN DIAGNÓSTICA
-[Conclusión]
-""",
-    "Gammagrafía Tiroidea (Iodo-131)": """I. DATOS TÉCNICOS
-Realizamos un gammagrama tiroideo utilizando una gammacámara marca Elscint Apex 409 AG y previa administración por vía oral con Iodo-131. El colimador para realizar el estudio es un Pinhole.
 
-II. HALLAZGOS
-[Descripción de la glándula tiroides, tamaño, distribución del material, nódulos y lóbulos derecho/izquierdo]
+[Impresión diagnóstica final]""",
+    "Gammagrafía Tiroidea (Iodo-131)": """REALIZAMOS UN GAMMAGRAMA TIROIDEO UTILIZANDO UNA GAMMACAMARA MARCA ELSCINT APEX 409 AG Y PREVIA ADMINISTRACION POR VIA ORAL CON IODO 131. EL COLIMADOR PARA REALIZAR EL ESTUDIO ES UN PINHOLE.
 
+SE APRECIA GLÁNDULA TIROIDE A NIVEL DE CUELLO, [Descripción de tamaño, distribución heterogénea/homogénea, zonas iso/hipercaptantes, lóbulos]. NO SE PARECIAN IMÁGENES DE LOE.
 
-III. CONCLUSIÓN
-[Impresión diagnóstica final]
-""",
+CONCLUSIÓN:
+
+[Conclusión diagnóstica, ej. Tiroides aumentada de tamaño, Bocio multinodular, etc.]""",
     "Rastreo Corporal Total": "INFORMACIÓN DEL ESTUDIO: RASTREO CORPORAL TOTAL\n[DATOS DEL PACIENTE]\nINDICACIÓN:\n\nHALLAZGOS:\n- Áreas de hipercaptación fisiológica y patológica:\n\nCONCLUSIÓN:",
     "Gammagrafía Renal (DTPA/DMSA)": "INFORMACIÓN DEL ESTUDIO: GAMMAGRAFÍA RENAL\n[DATOS DEL PACIENTE]\nINDICACIÓN:\n\nHALLAZGOS:\n- Perfusión y función renal izquierda:\n- Perfusión y función renal derecha:\n- Excreción / Función relativa:\n\nCONCLUSIÓN:",
     "Plantilla Libre": "Insertar informe médico estructurado."
@@ -332,7 +322,6 @@ with col1:
             if af.size < 20_000:
                 st.warning(f"⚠️ El audio {i} ({af.name}) parece muy corto o vacío. Puede que la transcripción salga incompleta.")
     
-    # Alturas dinámicas basadas en la plantilla
     altura_texto = 320 if tipo_estudio == "Gammagrafía Ósea" else (360 if "Tc-99m" in tipo_estudio else 220)
     plantilla_actual = st.text_area("Plantilla a completar:", value=PLANTILLAS[tipo_estudio], height=altura_texto)
 
@@ -346,7 +335,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
     if not openai_key or not gemini_key:
         st.error("⚠️ Ingrese ambas API Keys en la barra lateral.")
     else:
-        # --- Barra de progreso general ---
         barra_progreso = st.progress(0, text="Iniciando...")
 
         transcripciones = []
@@ -354,7 +342,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
         total_audios = len(audio_files)
 
         for i, af in enumerate(audio_files, start=1):
-            # La transcripción ocupa el primer 60% de la barra
             porcentaje = int((i - 1) / total_audios * 60)
             barra_progreso.progress(porcentaje, text=f"🎧 Transcribiendo audio {i} de {total_audios}...")
 
@@ -375,7 +362,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
         barra_progreso.progress(60, text="🎧 Transcripción completa.")
 
         if transcripciones:
-            # Combina todos los audios en un solo texto, etiquetando cada parte
             texto_transcrito = "\n\n".join(
                 f"[Audio {i}]\n{texto}" for i, texto in enumerate(transcripciones, start=1)
             )
@@ -401,21 +387,18 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     f"PLANTILLA:\n{plantilla_actual}"
                 )
 
-                # --- Llamada a Gemini con reintentos automáticos ---
                 MAX_INTENTOS = 4
                 response = None
                 ultimo_error = None
                 for intento in range(MAX_INTENTOS):
-                    # La generación con Gemini ocupa el 60%-95% de la barra
                     porcentaje = 60 + int((intento / MAX_INTENTOS) * 35)
                     if intento == 0:
                         barra_progreso.progress(porcentaje, text="🤖 Organizando informe con Gemini...")
                     else:
                         barra_progreso.progress(porcentaje, text=f"⏳ Servidor ocupado, reintentando ({intento + 1}/{MAX_INTENTOS})...")
                     try:
-                        # Corregido: uso de modelo gemini-1.5-flash
                         response = client_gemini.models.generate_content(
-                            model="gemini-1.5-flash",
+                            model="gemini-pro",
                             contents=prompt
                         )
                         break
@@ -434,7 +417,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                 barra_progreso.progress(95, text="💾 Guardando informe...")
 
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                # Limpiar caracteres conflictivos para Windows/Mac en el nombre del archivo
                 nombre_limpio = tipo_estudio.replace(' ', '_').replace('(', '').replace(')', '').replace('-', '_')
                 nombre_hist = f"{timestamp}_{nombre_limpio}.txt"
                 guardar_en_historial(nombre_hist, response.text)
@@ -459,9 +441,7 @@ doc_quijada = st.file_uploader("Documento del Dr. Quijada (.docx)", type=["docx"
 
 if doc_quijada:
     try:
-        # Corregido: pasar a BytesIO para evitar errores de lectura / archivo corrupto
-        doc_bytes_io = io.BytesIO(doc_quijada.getvalue())
-        _doc_check = Document(doc_bytes_io)
+        _doc_check = Document(doc_quijada)
         
         _texto_check = '\n'.join(''.join(p.itertext()) for p in _doc_check.element.body if p.tag == qn('w:p'))
         if 'Paciente:' not in _texto_check:
@@ -486,7 +466,6 @@ if doc_quijada and st.button("👁️ Generar Vista Previa"):
     else:
         try:
             fecha_texto = fecha_estudio.strftime("%d/%m/%Y") if fecha_estudio else None
-            # Uso seguro del archivo
             merged_bytes, nombre_detectado = unir_informe_renal(
                 "plantilla_renal.docx", io.BytesIO(doc_quijada.getvalue()),
                 fecha_estudio=fecha_texto,
