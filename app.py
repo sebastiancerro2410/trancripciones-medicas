@@ -299,7 +299,7 @@ IV. IMPRESIÓN DIAGNÓSTICA
 [Impresión diagnóstica final]""",
     "Gammagrafía Tiroidea (Iodo-131)": """REALIZAMOS UN GAMMAGRAMA TIROIDEO UTILIZANDO UNA GAMMACAMARA MARCA ELSCINT APEX 409 AG Y PREVIA ADMINISTRACION POR VIA ORAL CON IODO 131. EL COLIMADOR PARA REALIZAR EL ESTUDIO ES UN PINHOLE.
 
-SE APRECIA GLÁNDULA TIROIDE A NIVEL DE CUELLO, [Descripción de tamaño, distribución heterogénea/homogénea, zonas iso/hipercaptantes, lóbulos]. NO SE PARECIAN IMÁGENES DE LOE.
+SE APRECIA GLÁNDULA TIROIDE A NIVEL DE CUELLO, [Descripción de tamaño, distribución heterogénea/homogénea, zonas iso/hipercaptantes, lóbulos]. NO SE APRECIAN IMAGENES DE L.O.E., en tal caso que no haya
 
 CONCLUSIÓN:
 
