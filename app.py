@@ -1,6 +1,6 @@
 import streamlit as st
 import openai
-import google.generativeai as genai
+from google import genai
 import os
 import tempfile
 import base64
@@ -13,6 +13,8 @@ from docx import Document
 from docx.oxml.ns import qn
 
 def extraer_vista_previa(docx_bytes):
+    """Devuelve una lista de líneas de texto (y marcadores de imagen) para
+    mostrar como vista previa, sin necesidad de descargar el archivo."""
     doc = Document(io.BytesIO(docx_bytes))
     lineas = []
     for el in doc.element.body:
@@ -27,17 +29,23 @@ def extraer_vista_previa(docx_bytes):
                 lineas.append(texto)
     return lineas
 
+
 CARPETA_HISTORIAL = "informes_generados"
 os.makedirs(CARPETA_HISTORIAL, exist_ok=True)
 
+
 def guardar_en_historial(nombre_archivo, contenido_bytes_o_texto):
+    """Guarda una copia del informe generado en la carpeta de historial."""
     ruta = os.path.join(CARPETA_HISTORIAL, nombre_archivo)
     modo = "w" if isinstance(contenido_bytes_o_texto, str) else "wb"
     encoding = "utf-8" if modo == "w" else None
     with open(ruta, modo, encoding=encoding) as f:
         f.write(contenido_bytes_o_texto)
 
+
 def _llenar_campo(tpl_body, etiqueta_texto, valor):
+    """Escribe un valor justo después de una etiqueta con ':' en la plantilla
+    (por ejemplo 'Cedula:', 'Medico Referente:', 'Fecha De Estudio:')."""
     if not valor:
         return
     for el in tpl_body:
@@ -58,9 +66,14 @@ def _llenar_campo(tpl_body, etiqueta_texto, valor):
                     run_colon.addnext(nuevo_run)
                 return
 
-def unir_informe_renal(template_path, doc_bytes, fecha_estudio=None, medico_referente=None, cedula=None):
+
+def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, medico_referente=None, cedula=None):
+    """Une un documento Word del Dr. Quijada (hallazgos + imágenes) con la
+    plantilla institucional de Gammagrama Renal. No usa IA: solo copia
+    texto e imágenes, y detecta datos (nombre del paciente, M.S.A.S., C.M.)
+    por patrones simples de texto."""
     tpl_doc = Document(template_path)
-    content_doc = Document(doc_bytes)
+    content_doc = Document(contenido_docx_file)
 
     tpl_body = tpl_doc.element.body
     content_body = content_doc.element.body
@@ -170,6 +183,7 @@ def unir_informe_renal(template_path, doc_bytes, fecha_estudio=None, medico_refe
     buffer.seek(0)
     return buffer, nombre_paciente
 
+
 st.set_page_config(
     page_title="Medicina Nuclear - Sistema de Transcripción",
     page_icon="🏥",
@@ -178,7 +192,6 @@ st.set_page_config(
 
 with open("logo.png", "rb") as image_file:
     logo_base64 = base64.b64encode(image_file.read()).decode()
-logo_html = f'<img src="data:image/png;base64,{logo_base64}" width="150">'
 
 st.markdown(f"""
     <style>
@@ -194,7 +207,7 @@ st.markdown(f"""
         align-items: center;
         border-radius: 5px;
     ">
-        {logo_html}
+        <img src="data:image/png;base64,{logo_base64}" width="150">
     </div>
 """, unsafe_allow_html=True)
 
@@ -335,6 +348,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
     if not openai_key or not gemini_key:
         st.error("⚠️ Ingrese ambas API Keys en la barra lateral.")
     else:
+        # --- Barra de progreso general ---
         barra_progreso = st.progress(0, text="Iniciando...")
 
         transcripciones = []
@@ -342,6 +356,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
         total_audios = len(audio_files)
 
         for i, af in enumerate(audio_files, start=1):
+            # La transcripción ocupa el primer 60% de la barra
             porcentaje = int((i - 1) / total_audios * 60)
             barra_progreso.progress(porcentaje, text=f"🎧 Transcribiendo audio {i} de {total_audios}...")
 
@@ -362,15 +377,14 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
         barra_progreso.progress(60, text="🎧 Transcripción completa.")
 
         if transcripciones:
+            # Combina todos los audios en un solo texto, etiquetando cada parte
             texto_transcrito = "\n\n".join(
                 f"[Audio {i}]\n{texto}" for i, texto in enumerate(transcripciones, start=1)
             )
             with st.expander("Ver texto crudo (todos los audios)"): st.write(texto_transcrito)
 
             try:
-                genai.configure(api_key=gemini_key)
-                model = genai.GenerativeModel('gemini-pro')
-                
+                client_gemini = genai.Client(api_key=gemini_key)
                 instrucciones_extra = INSTRUCCIONES_ESTRICTAS_OSEA if tipo_estudio == "Gammagrafía Ósea" else ""
                 nota_multi_audio = (
                     "\nNOTA: El dictado puede venir dividido en varios audios (marcados como [Audio 1], [Audio 2], etc.) "
@@ -389,17 +403,22 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     f"PLANTILLA:\n{plantilla_actual}"
                 )
 
+                # --- Llamada a Gemini con reintentos automáticos ---
                 MAX_INTENTOS = 4
                 response = None
                 ultimo_error = None
                 for intento in range(MAX_INTENTOS):
+                    # La generación con Gemini ocupa el 60%-95% de la barra
                     porcentaje = 60 + int((intento / MAX_INTENTOS) * 35)
                     if intento == 0:
                         barra_progreso.progress(porcentaje, text="🤖 Organizando informe con Gemini...")
                     else:
                         barra_progreso.progress(porcentaje, text=f"⏳ Servidor ocupado, reintentando ({intento + 1}/{MAX_INTENTOS})...")
                     try:
-                        response = model.generate_content(prompt)
+                        response = client_gemini.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt
+                        )
                         break
                     except Exception as err_intento:
                         ultimo_error = err_intento
@@ -441,7 +460,7 @@ doc_quijada = st.file_uploader("Documento del Dr. Quijada (.docx)", type=["docx"
 if doc_quijada:
     try:
         _doc_check = Document(doc_quijada)
-        
+        doc_quijada.seek(0)
         _texto_check = '\n'.join(''.join(p.itertext()) for p in _doc_check.element.body if p.tag == qn('w:p'))
         if 'Paciente:' not in _texto_check:
             st.warning("⚠️ No se encontró la línea 'Paciente:' en este documento. Revísalo antes de continuar, la unión podría fallar o quedar incompleta.")
@@ -460,21 +479,18 @@ with col_cedula:
     cedula_paciente = st.text_input("Cédula del Paciente")
 
 if doc_quijada and st.button("👁️ Generar Vista Previa"):
-    if not os.path.exists("plantilla_renal.docx"):
-        st.error("⚠️ No se encuentra la plantilla base 'plantilla_renal.docx' en el sistema.")
-    else:
-        try:
-            fecha_texto = fecha_estudio.strftime("%d/%m/%Y") if fecha_estudio else None
-            merged_bytes, nombre_detectado = unir_informe_renal(
-                "plantilla_renal.docx", io.BytesIO(doc_quijada.getvalue()),
-                fecha_estudio=fecha_texto,
-                medico_referente=medico_referente,
-                cedula=cedula_paciente
-            )
-            st.session_state["preview_bytes"] = merged_bytes.getvalue()
-            st.session_state["preview_nombre"] = nombre_detectado
-        except Exception as e:
-            st.error(f"Error al unir los documentos: {e}")
+    try:
+        fecha_texto = fecha_estudio.strftime("%d/%m/%Y") if fecha_estudio else None
+        merged_bytes, nombre_detectado = unir_informe_renal(
+            "plantilla_renal.docx", doc_quijada,
+            fecha_estudio=fecha_texto,
+            medico_referente=medico_referente,
+            cedula=cedula_paciente
+        )
+        st.session_state["preview_bytes"] = merged_bytes.getvalue()
+        st.session_state["preview_nombre"] = nombre_detectado
+    except Exception as e:
+        st.error(f"Error al unir los documentos: {e}")
 
 if st.session_state.get("preview_bytes"):
     st.markdown("### 👁️ Vista Previa (todavía no se ha guardado)")
