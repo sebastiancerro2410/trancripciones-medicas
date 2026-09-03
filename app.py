@@ -190,26 +190,28 @@ st.set_page_config(
     layout="wide"
 )
 
-with open("logo.png", "rb") as image_file:
-    logo_base64 = base64.b64encode(image_file.read()).decode()
+# Render logo if available
+if os.path.exists("logo.png"):
+    with open("logo.png", "rb") as image_file:
+        logo_base64 = base64.b64encode(image_file.read()).decode()
 
-st.markdown(f"""
-    <style>
-    .block-container {{ padding-top: 3.5rem !important; }}
-    </style>
-    <div style="
-        background-color: #ebe20e; 
-        width: 100%; 
-        padding: 15px 20px; 
-        margin-bottom: 25px;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.08);
-        display: flex;
-        align-items: center;
-        border-radius: 5px;
-    ">
-        <img src="data:image/png;base64,{logo_base64}" width="150">
-    </div>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+        <style>
+        .block-container {{ padding-top: 3.5rem !important; }}
+        </style>
+        <div style="
+            background-color: #ebe20e; 
+            width: 100%; 
+            padding: 15px 20px; 
+            margin-bottom: 25px;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            border-radius: 5px;
+        ">
+            <img src="data:image/png;base64,{logo_base64}" width="150">
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("""
     <style>
@@ -358,7 +360,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
         total_audios = len(audio_files)
 
         for i, af in enumerate(audio_files, start=1):
-            # La transcripción ocupa el primer 60% de la barra
             porcentaje = int((i - 1) / total_audios * 60)
             barra_progreso.progress(porcentaje, text=f"🎧 Transcribiendo audio {i} de {total_audios}...")
 
@@ -379,7 +380,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
         barra_progreso.progress(60, text="🎧 Transcripción completa.")
 
         if transcripciones:
-            # Combina todos los audios en un solo texto, etiquetando cada parte
             texto_transcrito = "\n\n".join(
                 f"[Audio {i}]\n{texto}" for i, texto in enumerate(transcripciones, start=1)
             )
@@ -396,21 +396,19 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                 )
                 prompt = (
                     f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
-                    f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado. "
-                    f"Si un campo de la plantilla no fue mencionado, escribe exactamente 'Dentro de límites normales' en ese campo, "
-                    f"nunca lo completes con información supuesta. Usa negritas (Markdown **) para los títulos."
+                    f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado.\n"
+                    f"REGLA ESPECÍFICA PARA RESULTADOS: Si el doctor NO menciona el resultado de la 'PRUEBA DE CAPTACION' o cualquier campo marcado como 'RESULTADO:', déjalo estrictamente EN BLANCO (es decir, deja 'RESULTADO:' sin añadir nada a continuación). No escribas 'Dentro de límites normales', ni inventes valores o porcentajes.\n"
+                    f"Para los demás campos anatómicos o descriptivos no mencionados en el dictado, si la plantilla requiere completarlos, escribe exactamente 'Dentro de límites normales'. Nunca completes con información supuesta. Usa negritas (Markdown **) para los títulos."
                     f"{nota_multi_audio}"
                     f"{instrucciones_extra}\n"
                     f"DICTADO: {texto_transcrito}\n"
                     f"PLANTILLA:\n{plantilla_actual}"
                 )
 
-                # --- Llamada a Gemini con reintentos automáticos ---
                 MAX_INTENTOS = 4
                 response = None
                 ultimo_error = None
                 for intento in range(MAX_INTENTOS):
-                    # La generación con Gemini ocupa el 60%-95% de la barra
                     porcentaje = 60 + int((intento / MAX_INTENTOS) * 35)
                     if intento == 0:
                         barra_progreso.progress(porcentaje, text="🤖 Organizando informe con Gemini...")
