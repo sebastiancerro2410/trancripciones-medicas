@@ -190,7 +190,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Render logo if available
 if os.path.exists("logo.png"):
     with open("logo.png", "rb") as image_file:
         logo_base64 = base64.b64encode(image_file.read()).decode()
@@ -352,7 +351,6 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
     if not openai_key or not gemini_key:
         st.error("⚠️ Ingrese ambas API Keys en la barra lateral.")
     else:
-        # --- Barra de progreso general ---
         barra_progreso = st.progress(0, text="Iniciando...")
 
         transcripciones = []
@@ -397,7 +395,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                 prompt = (
                     f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
                     f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado.\n"
-                    f"REGLA ESPECÍFICA PARA RESULTADOS: Si el doctor NO menciona el resultado de la 'PRUEBA DE CAPTACION' o cualquier campo marcado como 'RESULTADO:', déjalo estrictamente EN BLANCO (es decir, deja 'RESULTADO:' sin añadir nada a continuación). No escribas 'Dentro de límites normales', ni inventes valores o porcentajes.\n"
+                    f"REGLA ESPECÍFICA PARA RESULTADOS: Si el doctor NO menciona el resultado de la 'PRUEBA DE CAPTACION' o cualquier campo marcado como 'RESULTADO:', déjalo strictly EN BLANCO (es decir, deja 'RESULTADO:' sin añadir nada a continuación). No escribas 'Dentro de límites normales', ni inventes valores o porcentajes.\n"
                     f"Para los demás campos anatómicos o descriptivos no mencionados en el dictado, si la plantilla requiere completarlos, escribe exactamente 'Dentro de límites normales'. Nunca completes con información supuesta. Usa negritas (Markdown **) para los títulos."
                     f"{nota_multi_audio}"
                     f"{instrucciones_extra}\n"
