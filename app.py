@@ -301,6 +301,8 @@ IV. IMPRESIÓN DIAGNÓSTICA
 
 SE APRECIA GLÁNDULA TIROIDE A NIVEL DE CUELLO, [Descripción de tamaño, distribución heterogénea/homogénea, zonas iso/hipercaptantes, lóbulos]. NO SE APRECIAN IMAGENES DE L.O.E., en tal caso que no haya
 
+PRUEBA DE CAPTACION (V-N  .15-45%)…………………………….. RESULTADO:
+
 CONCLUSIÓN:
 
 [Conclusión diagnóstica, ej. Tiroides aumentada de tamaño, Bocio multinodular, etc.]""",
