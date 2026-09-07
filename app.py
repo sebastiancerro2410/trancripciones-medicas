@@ -280,10 +280,10 @@ Médico remitente: [Médico]
 
 I. DATOS TÉCNICOS
 
-• Estudio: Gammagrafía tiroidea
-• Radiofármaco: Pertecnetato de sodio marcado con Tc-99m
-• Vía de administración: Endovenosa
-• Proyecciones obtenidas: Anterior y oblicuas de la región cervical
+- Estudio: Gammagrafía tiroidea
+- Radiofármaco: Pertecnetato de sodio marcado con Tc-99m
+- Vía de administración: Endovenosa
+- Proyecciones obtenidas: Anterior y oblicuas de la región cervical
 
 II. ANTECEDENTES CLÍNICOS
 
@@ -476,7 +476,9 @@ with col_medico:
 with col_cedula:
     cedula_paciente = st.text_input("Cédula del Paciente")
 
-if doc_quijada and st.button("👁️ Generar Vista Previa"):
+nombre_para_guardar = st.text_input("Nombre para guardar el archivo (opcional, si lo dejas vacío se usa el nombre del paciente detectado en el documento):")
+
+if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary"):
     try:
         fecha_texto = fecha_estudio.strftime("%d/%m/%Y") if fecha_estudio else None
         merged_bytes, nombre_detectado = unir_informe_renal(
@@ -485,35 +487,14 @@ if doc_quijada and st.button("👁️ Generar Vista Previa"):
             medico_referente=medico_referente,
             cedula=cedula_paciente
         )
-        st.session_state["preview_bytes"] = merged_bytes.getvalue()
-        st.session_state["preview_nombre"] = nombre_detectado
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        nombre_elegido = nombre_para_guardar.strip() if nombre_para_guardar.strip() else nombre_detectado
+        nombre_base = nombre_elegido.replace(' ', '_') if nombre_elegido else "SinNombre"
+        nombre_hist = f"{timestamp}_{nombre_base}.docx"
+        guardar_en_historial(nombre_hist, merged_bytes.getvalue())
+        st.success(f"✅ Guardado como '{nombre_hist}'. Lo encuentras más abajo, en Historial de Informes.")
     except Exception as e:
         st.error(f"Error al unir los documentos: {e}")
-
-if st.session_state.get("preview_bytes"):
-    st.markdown("### 👁️ Vista Previa (todavía no se ha guardado)")
-    st.caption("Esto es solo texto, para que revises el contenido. El documento Word final sí tendrá el formato y las imágenes completas.")
-    with st.container(border=True):
-        for linea in extraer_vista_previa(st.session_state["preview_bytes"]):
-            st.write(linea)
-
-    col_confirmar, col_descartar = st.columns(2)
-    with col_confirmar:
-        if st.button("✅ Confirmar y Guardar en Historial", type="primary"):
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            nombre_detectado = st.session_state.get("preview_nombre")
-            nombre_base = nombre_detectado.replace(' ', '_') if nombre_detectado else "SinNombre"
-            nombre_hist = f"{timestamp}_{nombre_base}.docx"
-            guardar_en_historial(nombre_hist, st.session_state["preview_bytes"])
-            st.session_state.pop("preview_bytes", None)
-            st.session_state.pop("preview_nombre", None)
-            st.toast(f"✅ Guardado como '{nombre_hist}'. Lo encuentras más abajo, en Historial de Informes.", icon="✅")
-            st.rerun()
-    with col_descartar:
-        if st.button("🗑️ Descartar"):
-            st.session_state.pop("preview_bytes", None)
-            st.session_state.pop("preview_nombre", None)
-            st.rerun()
 
 st.markdown("---")
 st.header("📁 Historial de Informes")
