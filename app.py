@@ -30,6 +30,21 @@ def extraer_vista_previa(docx_bytes):
     return lineas
 
 
+def extraer_solo_texto(docx_bytes):
+    """Devuelve todo el texto de un .docx como un solo string, sin marcadores
+    de imagen ni nada extra: solo las líneas de texto separadas por saltos de línea."""
+    doc = Document(io.BytesIO(docx_bytes))
+    lineas = []
+    for el in doc.element.body:
+        if el.tag == qn('w:p'):
+            texto = ''.join(
+                t.text or '' for r in el.findall(qn('w:r')) for t in [r.find(qn('w:t'))] if t is not None
+            ).strip()
+            if texto:
+                lineas.append(texto)
+    return '\n'.join(lineas)
+
+
 CARPETA_HISTORIAL = "informes_generados"
 os.makedirs(CARPETA_HISTORIAL, exist_ok=True)
 
@@ -498,7 +513,7 @@ if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary")
 
 st.markdown("---")
 st.header("📁 Historial de Informes")
-st.markdown("Todos los informes generados (de audio o unidos con el Dr. Quijada) quedan guardados aquí automáticamente. Puedes buscar, renombrar o borrar cualquiera.")
+st.markdown("Todos los informes generados (de audio o unidos con el Dr. Quijada) quedan guardados aquí automáticamente. Puedes buscar, renombrar, borrar, o sacar el texto de cualquiera.")
 
 busqueda = st.text_input("🔍 Buscar por nombre de archivo o paciente")
 
@@ -523,7 +538,7 @@ if archivos_historial:
                 pass
 
         with st.container(border=True):
-            col_info, col_desc, col_ren, col_del = st.columns([3, 1, 1, 1])
+            col_info, col_desc, col_texto, col_ren, col_del = st.columns([3, 1, 1, 1, 1])
 
             with col_info:
                 st.markdown(f"{icono} **{nombre_archivo}**")
@@ -536,16 +551,37 @@ if archivos_historial:
                 mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if es_word else "text/plain"
                 st.download_button("⬇️ Descargar", data=datos_archivo, file_name=nombre_archivo, mime=mime, key=f"desc_{nombre_archivo}")
 
+            with col_texto:
+                if st.button("📋 Ver texto", key=f"texto_btn_{nombre_archivo}"):
+                    st.session_state["viendo_texto"] = nombre_archivo
+                    st.session_state.pop("renombrando", None)
+
             with col_ren:
                 if st.button("✏️ Renombrar", key=f"ren_btn_{nombre_archivo}"):
                     st.session_state["renombrando"] = nombre_archivo
-                    st.session_state.pop("confirmar_borrado", None)
+                    st.session_state.pop("viendo_texto", None)
 
             with col_del:
                 if st.button("🗑️ Borrar", key=f"del_btn_{nombre_archivo}"):
-                    st.session_state["confirmar_borrado"] = nombre_archivo
+                    os.remove(ruta)
                     st.session_state.pop("renombrando", None)
+                    st.session_state.pop("viendo_texto", None)
+                    st.rerun()
 
+            # --- Flujo para ver/copiar el texto sin imágenes ---
+            if st.session_state.get("viendo_texto") == nombre_archivo:
+                if es_word:
+                    with open(ruta, "rb") as f:
+                        texto_solo = extraer_solo_texto(f.read())
+                else:
+                    with open(ruta, "r", encoding="utf-8") as f:
+                        texto_solo = f.read()
+                st.code(texto_solo, language=None, wrap_lines=True)
+                if st.button("Cerrar", key=f"cerrar_texto_{nombre_archivo}"):
+                    st.session_state.pop("viendo_texto", None)
+                    st.rerun()
+
+            # --- Flujo de renombrado ---
             if st.session_state.get("renombrando") == nombre_archivo:
                 extension = os.path.splitext(nombre_archivo)[1]
                 nombre_sin_ext = os.path.splitext(nombre_archivo)[0]
@@ -561,19 +597,6 @@ if archivos_historial:
                 with col_cancel:
                     if st.button("❌ Cancelar", key=f"cancel_ren_{nombre_archivo}"):
                         st.session_state.pop("renombrando", None)
-                        st.rerun()
-
-            if st.session_state.get("confirmar_borrado") == nombre_archivo:
-                st.warning(f"¿Seguro que quieres borrar '{nombre_archivo}'? Esta acción no se puede deshacer.")
-                col_si, col_no = st.columns(2)
-                with col_si:
-                    if st.button("🗑️ Sí, borrar definitivamente", key=f"si_del_{nombre_archivo}"):
-                        os.remove(ruta)
-                        st.session_state.pop("confirmar_borrado", None)
-                        st.rerun()
-                with col_no:
-                    if st.button("Cancelar", key=f"no_del_{nombre_archivo}"):
-                        st.session_state.pop("confirmar_borrado", None)
                         st.rerun()
 else:
     if busqueda:
