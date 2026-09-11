@@ -77,6 +77,18 @@ def categorizar_archivo(nombre_archivo):
     return "Otros"
 
 
+# Color y emoji distintivo por cada tipo de estudio, para las etiquetas del historial
+ESTILO_CATEGORIA = {
+    "Gammagrafía Ósea": ("🦴", "#8B5CF6"),
+    "Gammagrafía Tiroidea (Tc-99m)": ("🦋", "#0EA5E9"),
+    "Gammagrafía Tiroidea (Iodo-131)": ("🦋", "#14B8A6"),
+    "Rastreo Corporal Total": ("🔎", "#F59E0B"),
+    "Gammagrafía Renal": ("🫘", "#EF4444"),
+    "Plantilla Libre": ("📝", "#6B7280"),
+    "Otros": ("📄", "#6B7280"),
+}
+
+
 def contar_estudios_por_tipo():
     """Cuenta cuántos archivos hay en el historial por cada tipo de estudio."""
     archivos = os.listdir(CARPETA_HISTORIAL)
@@ -565,94 +577,116 @@ else:
     st.info("Todavía no hay estudios registrados.")
 
 st.markdown("---")
-st.header("📁 Historial de Informes")
-st.markdown("Todos los informes generados (de audio o unidos con el Dr. Quijada) quedan guardados aquí automáticamente. Puedes buscar, renombrar, borrar, o sacar el texto de cualquiera.")
 
-busqueda = st.text_input("🔍 Buscar por nombre de archivo o paciente")
+archivos_historial_todos = os.listdir(CARPETA_HISTORIAL)
 
-archivos_historial = sorted(os.listdir(CARPETA_HISTORIAL), reverse=True)
-if busqueda:
-    archivos_historial = [a for a in archivos_historial if busqueda.lower() in a.lower()]
+with st.expander(f"📁 Historial de Informes ({len(archivos_historial_todos)})", expanded=False):
+    st.markdown("Todos los informes generados (de audio o unidos con el Dr. Quijada) quedan guardados aquí automáticamente. Puedes buscar, renombrar, borrar, o sacar el texto de cualquiera.")
 
-st.caption(f"{len(archivos_historial)} informe(s) encontrados" if busqueda else f"{len(archivos_historial)} informe(s) en total")
+    busqueda = st.text_input("🔍 Buscar por nombre de archivo o paciente")
 
-if archivos_historial:
-    for nombre_archivo in archivos_historial:
-        ruta = os.path.join(CARPETA_HISTORIAL, nombre_archivo)
-        es_word = nombre_archivo.endswith(".docx")
-        icono = "📄" if es_word else "📝"
-
-        fecha_legible = ""
-        partes = nombre_archivo.split("_", 2)
-        if len(partes) >= 2:
-            try:
-                fecha_legible = datetime.datetime.strptime(f"{partes[0]}_{partes[1]}", "%Y-%m-%d_%H-%M-%S").strftime("%d/%m/%Y %H:%M")
-            except ValueError:
-                pass
-
-        with st.container(border=True):
-            col_info, col_desc, col_texto, col_ren, col_del = st.columns([3, 1, 1, 1, 1])
-
-            with col_info:
-                st.markdown(f"{icono} **{nombre_archivo}**")
-                if fecha_legible:
-                    st.caption(fecha_legible)
-
-            with col_desc:
-                with open(ruta, "rb") as f:
-                    datos_archivo = f.read()
-                mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if es_word else "text/plain"
-                st.download_button("⬇️ Descargar", data=datos_archivo, file_name=nombre_archivo, mime=mime, key=f"desc_{nombre_archivo}")
-
-            with col_texto:
-                if st.button("📋 Ver texto", key=f"texto_btn_{nombre_archivo}"):
-                    st.session_state["viendo_texto"] = nombre_archivo
-                    st.session_state.pop("renombrando", None)
-
-            with col_ren:
-                if st.button("✏️ Renombrar", key=f"ren_btn_{nombre_archivo}"):
-                    st.session_state["renombrando"] = nombre_archivo
-                    st.session_state.pop("viendo_texto", None)
-
-            with col_del:
-                if st.button("🗑️ Borrar", key=f"del_btn_{nombre_archivo}"):
-                    os.remove(ruta)
-                    st.session_state.pop("renombrando", None)
-                    st.session_state.pop("viendo_texto", None)
-                    st.rerun()
-
-            # --- Flujo para ver/copiar el texto sin imágenes ---
-            if st.session_state.get("viendo_texto") == nombre_archivo:
-                if es_word:
-                    with open(ruta, "rb") as f:
-                        texto_solo = extraer_solo_texto(f.read())
-                else:
-                    with open(ruta, "r", encoding="utf-8") as f:
-                        texto_solo = f.read()
-                st.code(texto_solo, language=None, wrap_lines=True)
-                if st.button("Cerrar", key=f"cerrar_texto_{nombre_archivo}"):
-                    st.session_state.pop("viendo_texto", None)
-                    st.rerun()
-
-            # --- Flujo de renombrado ---
-            if st.session_state.get("renombrando") == nombre_archivo:
-                extension = os.path.splitext(nombre_archivo)[1]
-                nombre_sin_ext = os.path.splitext(nombre_archivo)[0]
-                nuevo_nombre = st.text_input("Nuevo nombre (sin extensión):", value=nombre_sin_ext, key=f"input_ren_{nombre_archivo}")
-                col_ok, col_cancel = st.columns(2)
-                with col_ok:
-                    if st.button("✅ Guardar nombre", key=f"ok_ren_{nombre_archivo}"):
-                        nueva_ruta = os.path.join(CARPETA_HISTORIAL, nuevo_nombre.strip() + extension)
-                        if nuevo_nombre.strip():
-                            os.rename(ruta, nueva_ruta)
-                        st.session_state.pop("renombrando", None)
-                        st.rerun()
-                with col_cancel:
-                    if st.button("❌ Cancelar", key=f"cancel_ren_{nombre_archivo}"):
-                        st.session_state.pop("renombrando", None)
-                        st.rerun()
-else:
+    archivos_historial = sorted(archivos_historial_todos, reverse=True)
     if busqueda:
-        st.info("No se encontraron informes que coincidan con la búsqueda.")
+        archivos_historial = [a for a in archivos_historial if busqueda.lower() in a.lower()]
+
+    st.caption(f"{len(archivos_historial)} informe(s) encontrados" if busqueda else f"{len(archivos_historial)} informe(s) en total")
+
+    if archivos_historial:
+        for nombre_archivo in archivos_historial:
+            ruta = os.path.join(CARPETA_HISTORIAL, nombre_archivo)
+            es_word = nombre_archivo.endswith(".docx")
+
+            categoria = categorizar_archivo(nombre_archivo)
+            emoji_cat, color_cat = ESTILO_CATEGORIA.get(categoria, ("📄", "#6B7280"))
+
+            fecha_legible = ""
+            partes = nombre_archivo.split("_", 2)
+            if len(partes) >= 2:
+                try:
+                    fecha_legible = datetime.datetime.strptime(f"{partes[0]}_{partes[1]}", "%Y-%m-%d_%H-%M-%S").strftime("%d/%m/%Y · %H:%M")
+                except ValueError:
+                    pass
+
+            with st.container(border=True):
+                col_info, col_desc, col_texto, col_ren, col_del = st.columns([3, 1, 1, 1, 1])
+
+                with col_info:
+                    st.markdown(
+                        f"""
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <span style="
+                                background-color:{color_cat}22;
+                                color:{color_cat};
+                                border:1px solid {color_cat}55;
+                                border-radius:999px;
+                                padding:2px 10px;
+                                font-size:12px;
+                                font-weight:600;
+                                white-space:nowrap;
+                            ">{emoji_cat} {categoria}</span>
+                        </div>
+                        <div style="font-weight:600; font-size:15px;">{nombre_archivo}</div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    if fecha_legible:
+                        st.caption(f"🕐 {fecha_legible}")
+
+                with col_desc:
+                    with open(ruta, "rb") as f:
+                        datos_archivo = f.read()
+                    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if es_word else "text/plain"
+                    st.download_button("⬇️", data=datos_archivo, file_name=nombre_archivo, mime=mime, key=f"desc_{nombre_archivo}", help="Descargar")
+
+                with col_texto:
+                    if st.button("📋", key=f"texto_btn_{nombre_archivo}", help="Ver texto sin imágenes"):
+                        st.session_state["viendo_texto"] = nombre_archivo
+                        st.session_state.pop("renombrando", None)
+
+                with col_ren:
+                    if st.button("✏️", key=f"ren_btn_{nombre_archivo}", help="Renombrar"):
+                        st.session_state["renombrando"] = nombre_archivo
+                        st.session_state.pop("viendo_texto", None)
+
+                with col_del:
+                    if st.button("🗑️", key=f"del_btn_{nombre_archivo}", help="Borrar"):
+                        os.remove(ruta)
+                        st.session_state.pop("renombrando", None)
+                        st.session_state.pop("viendo_texto", None)
+                        st.rerun()
+
+                # --- Flujo para ver/copiar el texto sin imágenes ---
+                if st.session_state.get("viendo_texto") == nombre_archivo:
+                    if es_word:
+                        with open(ruta, "rb") as f:
+                            texto_solo = extraer_solo_texto(f.read())
+                    else:
+                        with open(ruta, "r", encoding="utf-8") as f:
+                            texto_solo = f.read()
+                    st.code(texto_solo, language=None, wrap_lines=True)
+                    if st.button("Cerrar", key=f"cerrar_texto_{nombre_archivo}"):
+                        st.session_state.pop("viendo_texto", None)
+                        st.rerun()
+
+                # --- Flujo de renombrado ---
+                if st.session_state.get("renombrando") == nombre_archivo:
+                    extension = os.path.splitext(nombre_archivo)[1]
+                    nombre_sin_ext = os.path.splitext(nombre_archivo)[0]
+                    nuevo_nombre = st.text_input("Nuevo nombre (sin extensión):", value=nombre_sin_ext, key=f"input_ren_{nombre_archivo}")
+                    col_ok, col_cancel = st.columns(2)
+                    with col_ok:
+                        if st.button("✅ Guardar nombre", key=f"ok_ren_{nombre_archivo}"):
+                            nueva_ruta = os.path.join(CARPETA_HISTORIAL, nuevo_nombre.strip() + extension)
+                            if nuevo_nombre.strip():
+                                os.rename(ruta, nueva_ruta)
+                            st.session_state.pop("renombrando", None)
+                            st.rerun()
+                    with col_cancel:
+                        if st.button("❌ Cancelar", key=f"cancel_ren_{nombre_archivo}"):
+                            st.session_state.pop("renombrando", None)
+                            st.rerun()
     else:
-        st.info("Todavía no hay informes generados.")
+        if busqueda:
+            st.info("No se encontraron informes que coincidan con la búsqueda.")
+        else:
+            st.info("Todavía no hay informes generados.")
