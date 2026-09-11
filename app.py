@@ -78,14 +78,15 @@ def categorizar_archivo(nombre_archivo):
 
 
 # Color y emoji distintivo por cada tipo de estudio, para las etiquetas del historial
+# (colores claros/pastel para que resalten sobre fondo oscuro)
 ESTILO_CATEGORIA = {
-    "Gammagrafía Ósea": ("🦴", "#6B5B4D"),
-    "Gammagrafía Tiroidea (Tc-99m)": ("🦋", "#0F766E"),
-    "Gammagrafía Tiroidea (Iodo-131)": ("🦋", "#155E75"),
-    "Rastreo Corporal Total": ("🔎", "#92400E"),
-    "Gammagrafía Renal": ("🫘", "#7C2D12"),
-    "Plantilla Libre": ("📝", "#44403C"),
-    "Otros": ("📄", "#44403C"),
+    "Gammagrafía Ósea": ("🦴", "#C4A98A"),
+    "Gammagrafía Tiroidea (Tc-99m)": ("🦋", "#5EEAD4"),
+    "Gammagrafía Tiroidea (Iodo-131)": ("🦋", "#67E8F9"),
+    "Rastreo Corporal Total": ("🔎", "#FCD34D"),
+    "Gammagrafía Renal": ("🫘", "#FCA5A5"),
+    "Plantilla Libre": ("📝", "#CBD5E1"),
+    "Otros": ("📄", "#CBD5E1"),
 }
 
 
@@ -274,88 +275,75 @@ st.markdown("""
 
     html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
 
-    .stApp { background-color: #FAFAF8; }
-
-    .main-title { font-size: 26px; font-weight: 700; color: #1E293B; letter-spacing: -0.3px; }
-    .sub-title { font-size: 14px; color: #6B7280; margin-bottom: 28px; }
+    .main-title { font-size: 26px; font-weight: 700; color: #F1F5F9; letter-spacing: -0.3px; }
+    .sub-title { font-size: 14px; color: #94A3B8; margin-bottom: 28px; }
 
     /* Encabezados de sección (st.header / st.subheader) */
     h2 {
-        color: #1E293B !important;
+        color: #F1F5F9 !important;
         font-weight: 700 !important;
         font-size: 20px !important;
-        border-bottom: 2px solid #E7E1D3;
+        border-bottom: 2px solid #334155;
         padding-bottom: 10px;
         margin-top: 10px !important;
     }
     h3 {
-        color: #374151 !important;
+        color: #CBD5E1 !important;
         font-weight: 600 !important;
         font-size: 16px !important;
     }
 
     /* Botones */
     .stButton button {
-        background-color: #1E293B;
-        color: white;
+        background-color: #C9A227;
+        color: #0F172A;
         border-radius: 8px;
-        font-weight: 600;
+        font-weight: 700;
         width: 100%;
         border: none;
         padding: 0.55rem 1rem;
         transition: background-color 0.15s ease;
         letter-spacing: 0.2px;
     }
-    .stButton button:hover { background-color: #334155; color: white; }
+    .stButton button:hover { background-color: #E0B92E; color: #0F172A; }
 
     /* Contenedores con borde (cajas de resultados, tarjetas del historial) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border-radius: 10px !important;
-        border: 1px solid #E7E1D3 !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        border: 1px solid #334155 !important;
+        background-color: #1E293B !important;
     }
 
     /* Métricas (contador de estudios) */
     div[data-testid="stMetric"] {
-        background-color: #FFFFFF;
-        border: 1px solid #E7E1D3;
+        background-color: #1E293B;
+        border: 1px solid #334155;
         border-radius: 10px;
         padding: 14px 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    div[data-testid="stMetricLabel"] { font-size: 11px !important; color: #6B7280 !important; }
-    div[data-testid="stMetricValue"] { color: #1E293B !important; font-weight: 700 !important; }
+    div[data-testid="stMetricLabel"] { font-size: 11px !important; color: #94A3B8 !important; }
+    div[data-testid="stMetricValue"] { color: #F1F5F9 !important; font-weight: 700 !important; }
 
     /* Menús desplegables (Historial) */
     div[data-testid="stExpander"] {
-        border: 1px solid #E7E1D3 !important;
+        border: 1px solid #334155 !important;
         border-radius: 10px !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-
-    /* Barra lateral */
-    section[data-testid="stSidebar"] {
-        background-color: #1E293B;
-    }
-    section[data-testid="stSidebar"] * { color: #E2E8F0 !important; }
-    section[data-testid="stSidebar"] input {
-        background-color: #334155 !important;
-        color: #F1F5F9 !important;
-        border: 1px solid #475569 !important;
-        border-radius: 6px !important;
+        background-color: #1E293B !important;
     }
 
     /* Cuadros de texto y áreas de texto */
     .stTextInput input, .stTextArea textarea {
         border-radius: 8px !important;
-        border: 1px solid #D6D0C4 !important;
+        border: 1px solid #334155 !important;
+        background-color: #1E293B !important;
+        color: #F1F5F9 !important;
     }
 
     /* Zona de arrastrar archivos */
     [data-testid="stFileUploaderDropzone"] {
         border-radius: 10px !important;
         border: 1.5px dashed #C9A227 !important;
-        background-color: #FFFDF6 !important;
+        background-color: #1E293B !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -681,7 +669,7 @@ with st.expander(f"📁 Historial de Informes ({len(archivos_historial_todos)})"
             es_word = nombre_archivo.endswith(".docx")
 
             categoria = categorizar_archivo(nombre_archivo)
-            emoji_cat, color_cat = ESTILO_CATEGORIA.get(categoria, ("📄", "#6B7280"))
+            emoji_cat, color_cat = ESTILO_CATEGORIA.get(categoria, ("📄", "#CBD5E1"))
 
             fecha_legible = ""
             partes = nombre_archivo.split("_", 2)
@@ -699,7 +687,7 @@ with st.expander(f"📁 Historial de Informes ({len(archivos_historial_todos)})"
                         f"""
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                             <span style="
-                                background-color:#F8F7F5;
+                                background-color:#0F172A;
                                 color:{color_cat};
                                 border-left:3px solid {color_cat};
                                 border-radius:3px;
@@ -711,7 +699,7 @@ with st.expander(f"📁 Historial de Informes ({len(archivos_historial_todos)})"
                                 white-space:nowrap;
                             ">{emoji_cat} {categoria}</span>
                         </div>
-                        <div style="font-weight:600; font-size:15px; color:#1E1B18;">{nombre_archivo}</div>
+                        <div style="font-weight:600; font-size:15px; color:#F1F5F9;">{nombre_archivo}</div>
                         """,
                         unsafe_allow_html=True
                     )
