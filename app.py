@@ -58,6 +58,35 @@ def guardar_en_historial(nombre_archivo, contenido_bytes_o_texto):
         f.write(contenido_bytes_o_texto)
 
 
+def categorizar_archivo(nombre_archivo):
+    """Determina a qué tipo de estudio pertenece un archivo del historial,
+    según palabras clave presentes en su nombre."""
+    nombre_lower = nombre_archivo.lower()
+    if 'renal' in nombre_lower:
+        return "Gammagrafía Renal"
+    if 'ósea' in nombre_lower or 'osea' in nombre_lower:
+        return "Gammagrafía Ósea"
+    if 'tiroidea' in nombre_lower and ('tc_99m' in nombre_lower or 'tc-99m' in nombre_lower or 'tc99m' in nombre_lower):
+        return "Gammagrafía Tiroidea (Tc-99m)"
+    if 'iodo' in nombre_lower:
+        return "Gammagrafía Tiroidea (Iodo-131)"
+    if 'rastreo' in nombre_lower:
+        return "Rastreo Corporal Total"
+    if 'plantilla_libre' in nombre_lower:
+        return "Plantilla Libre"
+    return "Otros"
+
+
+def contar_estudios_por_tipo():
+    """Cuenta cuántos archivos hay en el historial por cada tipo de estudio."""
+    archivos = os.listdir(CARPETA_HISTORIAL)
+    conteo = {}
+    for nombre_archivo in archivos:
+        categoria = categorizar_archivo(nombre_archivo)
+        conteo[categoria] = conteo.get(categoria, 0) + 1
+    return conteo, len(archivos)
+
+
 def _llenar_campo(tpl_body, etiqueta_texto, valor):
     """Escribe un valor justo después de una etiqueta con ':' en la plantilla
     (por ejemplo 'Cedula:', 'Medico Referente:', 'Fecha De Estudio:')."""
@@ -505,11 +534,35 @@ if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary")
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         nombre_elegido = nombre_para_guardar.strip() if nombre_para_guardar.strip() else nombre_detectado
         nombre_base = nombre_elegido.replace(' ', '_') if nombre_elegido else "SinNombre"
-        nombre_hist = f"{timestamp}_{nombre_base}.docx"
+        nombre_hist = f"{timestamp}_Renal_{nombre_base}.docx"
         guardar_en_historial(nombre_hist, merged_bytes.getvalue())
         st.success(f"✅ Guardado como '{nombre_hist}'. Lo encuentras más abajo, en Historial de Informes.")
     except Exception as e:
         st.error(f"Error al unir los documentos: {e}")
+
+st.markdown("---")
+st.header("📊 Estudios Realizados")
+
+conteo_tipos, total_estudios = contar_estudios_por_tipo()
+
+if total_estudios > 0:
+    tipos_ordenados = [
+        "Gammagrafía Ósea",
+        "Gammagrafía Tiroidea (Tc-99m)",
+        "Gammagrafía Tiroidea (Iodo-131)",
+        "Rastreo Corporal Total",
+        "Gammagrafía Renal",
+        "Plantilla Libre",
+        "Otros",
+    ]
+    columnas_conteo = st.columns(len(tipos_ordenados) + 1)
+    for col, tipo in zip(columnas_conteo, tipos_ordenados):
+        with col:
+            st.metric(tipo, conteo_tipos.get(tipo, 0))
+    with columnas_conteo[-1]:
+        st.metric("Total", total_estudios)
+else:
+    st.info("Todavía no hay estudios registrados.")
 
 st.markdown("---")
 st.header("📁 Historial de Informes")
