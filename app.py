@@ -79,13 +79,13 @@ def categorizar_archivo(nombre_archivo):
 
 # Color y emoji distintivo por cada tipo de estudio, para las etiquetas del historial
 ESTILO_CATEGORIA = {
-    "Gammagrafía Ósea": ("🦴", "#8B5CF6"),
-    "Gammagrafía Tiroidea (Tc-99m)": ("🦋", "#0EA5E9"),
-    "Gammagrafía Tiroidea (Iodo-131)": ("🦋", "#14B8A6"),
-    "Rastreo Corporal Total": ("🔎", "#F59E0B"),
-    "Gammagrafía Renal": ("🫘", "#EF4444"),
-    "Plantilla Libre": ("📝", "#6B7280"),
-    "Otros": ("📄", "#6B7280"),
+    "Gammagrafía Ósea": ("🦴", "#6B5B4D"),
+    "Gammagrafía Tiroidea (Tc-99m)": ("🦋", "#0F766E"),
+    "Gammagrafía Tiroidea (Iodo-131)": ("🦋", "#155E75"),
+    "Rastreo Corporal Total": ("🔎", "#92400E"),
+    "Gammagrafía Renal": ("🫘", "#7C2D12"),
+    "Plantilla Libre": ("📝", "#44403C"),
+    "Otros": ("📄", "#44403C"),
 }
 
 
@@ -272,7 +272,8 @@ st.markdown("""
     <style>
     .main-title { font-size: 28px; font-weight: bold; color: #ebe20e; }
     .sub-title { font-size: 15px; color: #4B5563; margin-bottom: 25px; }
-    .stButton button { background-color: #2563EB; color: white; border-radius: 8px; font-weight: bold; width: 100%; }
+    .stButton button { background-color: #1E293B; color: white; border-radius: 6px; font-weight: 600; width: 100%; border: none; }
+    .stButton button:hover { background-color: #334155; color: white; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -613,19 +614,21 @@ with st.expander(f"📁 Historial de Informes ({len(archivos_historial_todos)})"
                 with col_info:
                     st.markdown(
                         f"""
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                             <span style="
-                                background-color:{color_cat}22;
+                                background-color:#F8F7F5;
                                 color:{color_cat};
-                                border:1px solid {color_cat}55;
-                                border-radius:999px;
-                                padding:2px 10px;
-                                font-size:12px;
+                                border-left:3px solid {color_cat};
+                                border-radius:3px;
+                                padding:3px 10px;
+                                font-size:11px;
                                 font-weight:600;
+                                letter-spacing:0.3px;
+                                text-transform:uppercase;
                                 white-space:nowrap;
                             ">{emoji_cat} {categoria}</span>
                         </div>
-                        <div style="font-weight:600; font-size:15px;">{nombre_archivo}</div>
+                        <div style="font-weight:600; font-size:15px; color:#1E1B18;">{nombre_archivo}</div>
                         """,
                         unsafe_allow_html=True
                     )
