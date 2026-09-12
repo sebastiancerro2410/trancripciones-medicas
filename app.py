@@ -117,6 +117,29 @@ def verificar_informe_basico(texto, tipo_estudio):
     return avisos
 
 
+def verificar_informe_renal_basico(merged_bytes, nombre_detectado):
+    """Revisa el documento Word ya unido (Dr. Quijada + plantilla) con reglas
+    simples y gratuitas (sin IA): si se detectó el nombre del paciente, si el
+    contenido no quedó vacío/muy corto, y si se copió al menos una imagen.
+    Devuelve una lista de avisos (vacía si no encontró nada)."""
+    avisos = []
+
+    if not nombre_detectado:
+        avisos.append("No se detectó automáticamente el nombre del paciente; revisa que el documento final tenga el nombre correcto.")
+
+    lineas_preview = extraer_vista_previa(merged_bytes)
+    texto_solo = extraer_solo_texto(merged_bytes)
+
+    if len(texto_solo.strip()) < 80:
+        avisos.append("El documento final parece muy corto; revisa que el contenido del Dr. Quijada se haya insertado correctamente.")
+
+    tiene_imagenes = any("🖼️" in linea for linea in lineas_preview)
+    if not tiene_imagenes:
+        avisos.append("No se detectó ninguna imagen en el documento final; verifica que las imágenes del estudio se hayan copiado.")
+
+    return avisos
+
+
 # Color y emoji distintivo por cada tipo de estudio, para las etiquetas del historial
 # (colores claros/pastel para que resalten sobre fondo oscuro)
 ESTILO_CATEGORIA = {
@@ -662,6 +685,12 @@ with col_cedula:
 
 nombre_para_guardar = st.text_input("Nombre para guardar el archivo (opcional, si lo dejas vacío se usa el nombre del paciente detectado en el documento):")
 
+verificacion_renal_activada = st.checkbox(
+    "🔍 Verificar automáticamente al unir (opcional, gratis, no usa IA)",
+    value=False,
+    help="Revisa que se haya detectado el nombre del paciente, que el documento no quede vacío, y que se hayan copiado imágenes. No reemplaza la revisión clínica."
+)
+
 if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary"):
     try:
         fecha_texto = fecha_estudio.strftime("%d/%m/%Y") if fecha_estudio else None
@@ -677,6 +706,15 @@ if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary")
         nombre_hist = f"{timestamp}_Renal_{nombre_base}.docx"
         guardar_en_historial(nombre_hist, merged_bytes.getvalue())
         st.success(f"✅ Guardado como '{nombre_hist}'. Lo encuentras más abajo, en Historial de Informes.")
+
+        if verificacion_renal_activada:
+            advertencias_renal = verificar_informe_renal_basico(merged_bytes.getvalue(), nombre_detectado)
+            if advertencias_renal:
+                st.warning("🔍 Verificación automática — revisa esto antes de enviarlo:")
+                for adv in advertencias_renal:
+                    st.markdown(f"- {adv}")
+            else:
+                st.success("🔍 Verificación automática: no se detectaron problemas. (No reemplaza la revisión clínica.)")
     except Exception as e:
         st.error(f"Error al unir los documentos: {e}")
 
