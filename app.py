@@ -77,6 +77,46 @@ def categorizar_archivo(nombre_archivo):
     return "Otros"
 
 
+# Secciones esperadas por cada tipo de estudio (sin asteriscos, sin mayúsculas/minúsculas
+# porque la comparación se hace ignorando eso). Se usan solo para la verificación automática
+# opcional; no afectan la generación del informe.
+SECCIONES_ESPERADAS = {
+    "Gammagrafía Ósea": [
+        "I. DATOS TÉCNICOS", "II. ANTECEDENTES CLÍNICOS",
+        "III. HALLAZGOS", "IV. CONCLUSIÓN DIAGNÓSTICO",
+        "VISTA ANTERIOR", "VISTA POSTERIOR",
+    ],
+    "Gammagrafía Tiroidea (Tc-99m)": [
+        "I. DATOS TÉCNICOS", "II. ANTECEDENTES CLÍNICOS",
+        "III. HALLAZGOS", "IV. IMPRESIÓN DIAGNÓSTICA",
+    ],
+    "Rastreo Corporal Total": ["HALLAZGOS", "CONCLUSIÓN"],
+    "Gammagrafía Renal (DTPA/DMSA)": ["HALLAZGOS", "CONCLUSIÓN"],
+}
+
+
+def verificar_informe_basico(texto, tipo_estudio):
+    """Revisa el informe generado con reglas simples y gratuitas (sin usar IA):
+    busca marcadores de plantilla sin rellenar, texto sospechosamente corto, y
+    secciones esperadas que falten. Devuelve una lista de avisos (vacía si no
+    encontró nada). Esto NO reemplaza la revisión clínica de un transcriptor."""
+    avisos = []
+    texto_normalizado = texto.replace('**', '').upper()
+
+    if '[' in texto and ']' in texto:
+        avisos.append("Parece que quedó un marcador de plantilla sin completar (revisa si hay corchetes [ ] en el texto).")
+
+    if len(texto.strip()) < 80:
+        avisos.append("El informe generado es muy corto; revisa si el audio se transcribió bien.")
+
+    secciones = SECCIONES_ESPERADAS.get(tipo_estudio, [])
+    faltantes = [s for s in secciones if s not in texto_normalizado]
+    if faltantes:
+        avisos.append("No se encontraron estas secciones esperadas: " + ", ".join(faltantes) + ".")
+
+    return avisos
+
+
 # Color y emoji distintivo por cada tipo de estudio, para las etiquetas del historial
 # (colores claros/pastel para que resalten sobre fondo oscuro)
 ESTILO_CATEGORIA = {
@@ -469,6 +509,12 @@ with col1:
     altura_texto = 320 if tipo_estudio == "Gammagrafía Ósea" else (360 if "Tc-99m" in tipo_estudio else 220)
     plantilla_actual = st.text_area("Plantilla a completar:", value=PLANTILLAS[tipo_estudio], height=altura_texto)
 
+    verificacion_activada = st.checkbox(
+        "🔍 Verificar formato automáticamente al generar (opcional, gratis, no usa IA)",
+        value=False,
+        help="Revisa campos sin completar, secciones faltantes y texto demasiado corto. No reemplaza la revisión clínica del transcriptor."
+    )
+
 with col2:
     caja_resultados = st.container(border=True)
     with caja_resultados:
@@ -573,6 +619,16 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     st.markdown("---")
                     st.text_area("Copiar para sistema:", value=response.text, height=200)
                     st.download_button("📥 Descargar Informe (.txt)", data=response.text, file_name="informe_medico.txt", mime="text/plain")
+
+                    if verificacion_activada:
+                        st.markdown("---")
+                        advertencias = verificar_informe_basico(response.text, tipo_estudio)
+                        if advertencias:
+                            st.warning("🔍 Verificación automática — revisa esto antes de enviarlo:")
+                            for adv in advertencias:
+                                st.markdown(f"- {adv}")
+                        else:
+                            st.success("🔍 Verificación automática: no se detectaron problemas de formato o estructura. (No reemplaza la revisión clínica.)")
             except Exception as e:
                 barra_progreso.progress(100, text="❌ Error.")
                 st.error(f"Error al estructurar: {e}")
