@@ -78,6 +78,40 @@ def _coincide_busqueda(nombre_archivo, termino_lower):
         return False
 
 
+def nombre_visible(nombre_archivo):
+    """Devuelve una versión más legible del nombre del archivo para mostrar
+    en el historial: sin la fecha/hora técnica del inicio (esa ya se muestra
+    aparte, en formato legible), y con espacios en vez de guiones bajos."""
+    sin_fecha = re.sub(r'^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_', '', nombre_archivo)
+    sin_extension = os.path.splitext(sin_fecha)[0]
+    return sin_extension.replace('_', ' ')
+
+
+def verificar_lateralidad(texto):
+    """Busca líneas donde la etiqueta menciona un lado (izquierda/derecha) pero
+    el contenido de esa misma línea menciona explícitamente el lado contrario
+    (y no menciona el lado correcto también). Devuelve una lista de avisos."""
+    avisos = []
+    for linea in texto.split('\n'):
+        if ':' not in linea:
+            continue
+        etiqueta, _, contenido = linea.partition(':')
+        etiqueta_l = etiqueta.lower()
+        contenido_l = contenido.lower()
+
+        etiqueta_izq = bool(re.search(r'izquierd[ao]', etiqueta_l))
+        etiqueta_der = bool(re.search(r'derech[ao]', etiqueta_l))
+        contenido_izq = bool(re.search(r'izquierd[ao]', contenido_l))
+        contenido_der = bool(re.search(r'derech[ao]', contenido_l))
+
+        if etiqueta_izq and not etiqueta_der and contenido_der and not contenido_izq:
+            avisos.append(f"Posible confusión de lado — la etiqueta dice \"izquierda/o\" pero el contenido menciona \"derecha/o\": {linea.strip()}")
+        elif etiqueta_der and not etiqueta_izq and contenido_izq and not contenido_der:
+            avisos.append(f"Posible confusión de lado — la etiqueta dice \"derecha/o\" pero el contenido menciona \"izquierda/o\": {linea.strip()}")
+
+    return avisos
+
+
 def categorizar_archivo(nombre_archivo):
     """Determina a qué tipo de estudio pertenece un archivo del historial,
     según palabras clave presentes en su nombre."""
@@ -134,14 +168,17 @@ def verificar_informe_basico(texto, tipo_estudio):
     if faltantes:
         avisos.append("No se encontraron estas secciones esperadas: " + ", ".join(faltantes) + ".")
 
+    avisos.extend(verificar_lateralidad(texto))
+
     return avisos
 
 
 def verificar_informe_renal_basico(merged_bytes, nombre_detectado):
     """Revisa el documento Word ya unido (Dr. Quijada + plantilla) con reglas
     simples y gratuitas (sin IA): si se detectó el nombre del paciente, si el
-    contenido no quedó vacío/muy corto, y si se copió al menos una imagen.
-    Devuelve una lista de avisos (vacía si no encontró nada)."""
+    contenido no quedó vacío/muy corto, si se copió al menos una imagen, y si
+    hay posible confusión de lado izquierdo/derecho. Devuelve una lista de
+    avisos (vacía si no encontró nada)."""
     avisos = []
 
     if not nombre_detectado:
@@ -156,6 +193,8 @@ def verificar_informe_renal_basico(merged_bytes, nombre_detectado):
     tiene_imagenes = any("🖼️" in linea for linea in lineas_preview)
     if not tiene_imagenes:
         avisos.append("No se detectó ninguna imagen en el documento final; verifica que las imágenes del estudio se hayan copiado.")
+
+    avisos.extend(verificar_lateralidad(texto_solo))
 
     return avisos
 
@@ -559,7 +598,7 @@ with col1:
     verificacion_activada = st.checkbox(
         "🔍 Verificar formato automáticamente al generar",
         value=False,
-        help="Revisa campos sin completar, secciones faltantes y texto demasiado corto. No reemplaza la revisión clínica del transcriptor."
+        help="Revisa campos sin completar, secciones faltantes, texto demasiado corto, y posible confusión de lado izquierdo/derecho. No reemplaza la revisión clínica del transcriptor."
     )
 
 with col2:
@@ -716,7 +755,7 @@ nombre_para_guardar = st.text_input("Nombre para guardar el archivo (opcional, s
 verificacion_renal_activada = st.checkbox(
     "🔍 Verificar automáticamente al unir",
     value=False,
-    help="Revisa que se haya detectado el nombre del paciente, que el documento no quede vacío, y que se hayan copiado imágenes. No reemplaza la revisión clínica."
+    help="Revisa que se haya detectado el nombre del paciente, que el documento no quede vacío, que se hayan copiado imágenes, y posible confusión de lado izquierdo/derecho. No reemplaza la revisión clínica."
 )
 
 if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary"):
@@ -832,7 +871,7 @@ with st.expander(f"📁 Historial de Informes ({len(archivos_historial_todos)})"
                                 white-space:nowrap;
                             ">{emoji_cat} {categoria}</span>
                         </div>
-                        <div style="font-weight:600; font-size:15px; color:#F1F5F9;">{nombre_archivo}</div>
+                        <div style="font-weight:600; font-size:15px; color:#F1F5F9;">{nombre_visible(nombre_archivo)}</div>
                         """,
                         unsafe_allow_html=True
                     )
