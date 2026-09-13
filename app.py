@@ -557,7 +557,7 @@ with col1:
     )
 
     verificacion_activada = st.checkbox(
-        "🔍 Verificar formato automáticamente al generar (opcional, gratis, no usa IA)",
+        "🔍 Verificar formato automáticamente al generar",
         value=False,
         help="Revisa campos sin completar, secciones faltantes y texto demasiado corto. No reemplaza la revisión clínica del transcriptor."
     )
@@ -653,6 +653,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
 
                 barra_progreso.progress(95, text="💾 Guardando informe...")
 
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 nombre_limpio = tipo_estudio.replace(' ', '_').replace('(', '').replace(')', '').replace('-', '_')
                 nombre_paciente_limpio = nombre_paciente_audio.strip().replace(' ', '_') if nombre_paciente_audio.strip() else None
                 if nombre_paciente_limpio:
@@ -684,7 +685,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                 st.error(f"Error al estructurar: {e}")
 
 st.markdown("---")
-st.header("📎 Unir Informe Renal (Dr. Quijada) con Plantilla")
+st.header("📎 Unir Informe Renal con Plantilla")
 st.markdown("Sube el documento Word que envía el Dr. Quijada (con sus hallazgos e imágenes) y la app lo une automáticamente con la plantilla institucional. No usa IA, por lo que no necesita las claves de API.")
 
 doc_quijada = st.file_uploader("Documento del Dr. Quijada (.docx)", type=["docx"], key="doc_quijada")
@@ -713,7 +714,7 @@ with col_cedula:
 nombre_para_guardar = st.text_input("Nombre para guardar el archivo (opcional, si lo dejas vacío se usa el nombre del paciente detectado en el documento):")
 
 verificacion_renal_activada = st.checkbox(
-    "🔍 Verificar automáticamente al unir (opcional, gratis, no usa IA)",
+    "🔍 Verificar automáticamente al unir",
     value=False,
     help="Revisa que se haya detectado el nombre del paciente, que el documento no quede vacío, y que se hayan copiado imágenes. No reemplaza la revisión clínica."
 )
