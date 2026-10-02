@@ -264,9 +264,12 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
                 return i
         return None
 
-    paciente_idx = encontrar_indice(content_body, lambda t: t.strip().startswith('Paciente:'))
+    paciente_idx = encontrar_indice(
+        content_body,
+        lambda t: t.strip().startswith('Paciente:') or t.strip().startswith('Nombre:')
+    )
     if paciente_idx is None:
-        raise ValueError("No se encontró la línea 'Paciente:' en el documento del doctor.")
+        raise ValueError("No se encontró la línea 'Paciente:' ni 'Nombre:' en el documento del doctor.")
     atentamente_idx = encontrar_indice(content_body, lambda t: t.strip().startswith('Atentamente'), desde=paciente_idx + 1)
     if atentamente_idx is None:
         raise ValueError("No se encontró la línea 'Atentamente' (cierre/firma) en el documento del doctor.")
@@ -313,7 +316,10 @@ def unir_informe_renal(template_path, contenido_docx_file, fecha_estudio=None, m
         sig_el.addprevious(new_el)
 
     nombre_paciente = None
-    m_nombre = re.search(r'Paciente:\s*([^.:]+?)\.', ''.join(content_body[paciente_idx].itertext()))
+    texto_linea_paciente = ''.join(content_body[paciente_idx].itertext())
+    m_nombre = re.search(r'Paciente:\s*([^.:]+?)\.', texto_linea_paciente)
+    if not m_nombre:
+        m_nombre = re.search(r'Nombre:\s*(.+?)(?:Nombre:|Paciente:|$)', texto_linea_paciente)
     if m_nombre:
         nombre = m_nombre.group(1).strip()
         nombre_paciente = nombre
@@ -734,8 +740,8 @@ if doc_quijada:
         _doc_check = Document(doc_quijada)
         doc_quijada.seek(0)
         _texto_check = '\n'.join(''.join(p.itertext()) for p in _doc_check.element.body if p.tag == qn('w:p'))
-        if 'Paciente:' not in _texto_check:
-            st.warning("⚠️ No se encontró la línea 'Paciente:' en este documento. Revísalo antes de continuar, la unión podría fallar o quedar incompleta.")
+        if 'Paciente:' not in _texto_check and 'Nombre:' not in _texto_check:
+            st.warning("⚠️ No se encontró la línea 'Paciente:' ni 'Nombre:' en este documento. Revísalo antes de continuar, la unión podría fallar o quedar incompleta.")
         if 'Atentamente' not in _texto_check:
             st.warning("⚠️ No se encontró la palabra 'Atentamente' (cierre de firma) en este documento. Revísalo antes de continuar, la unión podría fallar o quedar incompleta.")
     except Exception:
