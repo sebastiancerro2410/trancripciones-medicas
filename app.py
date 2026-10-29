@@ -78,40 +78,6 @@ def _coincide_busqueda(nombre_archivo, termino_lower):
         return False
 
 
-def nombre_visible(nombre_archivo):
-    """Devuelve una versión más legible del nombre del archivo para mostrar
-    en el historial: sin la fecha/hora técnica del inicio (esa ya se muestra
-    aparte, en formato legible), y con espacios en vez de guiones bajos."""
-    sin_fecha = re.sub(r'^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_', '', nombre_archivo)
-    sin_extension = os.path.splitext(sin_fecha)[0]
-    return sin_extension.replace('_', ' ')
-
-
-def verificar_lateralidad(texto):
-    """Busca líneas donde la etiqueta menciona un lado (izquierda/derecha) pero
-    el contenido de esa misma línea menciona explícitamente el lado contrario
-    (y no menciona el lado correcto también). Devuelve una lista de avisos."""
-    avisos = []
-    for linea in texto.split('\n'):
-        if ':' not in linea:
-            continue
-        etiqueta, _, contenido = linea.partition(':')
-        etiqueta_l = etiqueta.lower()
-        contenido_l = contenido.lower()
-
-        etiqueta_izq = bool(re.search(r'izquierd[ao]', etiqueta_l))
-        etiqueta_der = bool(re.search(r'derech[ao]', etiqueta_l))
-        contenido_izq = bool(re.search(r'izquierd[ao]', contenido_l))
-        contenido_der = bool(re.search(r'derech[ao]', contenido_l))
-
-        if etiqueta_izq and not etiqueta_der and contenido_der and not contenido_izq:
-            avisos.append(f"Posible confusión de lado — la etiqueta dice \"izquierda/o\" pero el contenido menciona \"derecha/o\": {linea.strip()}")
-        elif etiqueta_der and not etiqueta_izq and contenido_izq and not contenido_der:
-            avisos.append(f"Posible confusión de lado — la etiqueta dice \"derecha/o\" pero el contenido menciona \"izquierda/o\": {linea.strip()}")
-
-    return avisos
-
-
 def categorizar_archivo(nombre_archivo):
     """Determina a qué tipo de estudio pertenece un archivo del historial,
     según palabras clave presentes en su nombre."""
@@ -129,6 +95,37 @@ def categorizar_archivo(nombre_archivo):
     if 'plantilla_libre' in nombre_lower:
         return "Plantilla Libre"
     return "Otros"
+
+
+def nombre_visible(nombre_archivo):
+    """Convierte el nombre de archivo interno (con fecha y guiones bajos) en un
+    título más legible para mostrar en el Historial, sin tocar el archivo real."""
+    sin_fecha = re.sub(r'^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_', '', nombre_archivo)
+    sin_extension = os.path.splitext(sin_fecha)[0]
+    return sin_extension.replace('_', ' ')
+
+
+def verificar_lateralidad(texto):
+    """Revisa, línea por línea, si la etiqueta de un campo (lo que está antes de
+    ':') menciona un lado (izquierda/derecha) distinto al que menciona el
+    contenido de esa misma línea. Es una señal de posible confusión al dictar
+    o transcribir, no una certeza; siempre debe confirmarla un humano."""
+    avisos = []
+    for linea in texto.split('\n'):
+        if ':' not in linea:
+            continue
+        etiqueta, _, contenido = linea.partition(':')
+        etiqueta_l = etiqueta.lower()
+        contenido_l = contenido.lower()
+        etiqueta_izq = bool(re.search(r'izquierd[ao]', etiqueta_l))
+        etiqueta_der = bool(re.search(r'derech[ao]', etiqueta_l))
+        contenido_izq = bool(re.search(r'izquierd[ao]', contenido_l))
+        contenido_der = bool(re.search(r'derech[ao]', contenido_l))
+        if etiqueta_izq and not etiqueta_der and contenido_der and not contenido_izq:
+            avisos.append(f"Posible confusión de lado — la etiqueta dice \"izquierda/o\" pero el contenido menciona \"derecha/o\": {linea.strip()}")
+        elif etiqueta_der and not etiqueta_izq and contenido_izq and not contenido_der:
+            avisos.append(f"Posible confusión de lado — la etiqueta dice \"derecha/o\" pero el contenido menciona \"izquierda/o\": {linea.strip()}")
+    return avisos
 
 
 # Secciones esperadas por cada tipo de estudio (sin asteriscos, sin mayúsculas/minúsculas
@@ -176,9 +173,8 @@ def verificar_informe_basico(texto, tipo_estudio):
 def verificar_informe_renal_basico(merged_bytes, nombre_detectado):
     """Revisa el documento Word ya unido (Dr. Quijada + plantilla) con reglas
     simples y gratuitas (sin IA): si se detectó el nombre del paciente, si el
-    contenido no quedó vacío/muy corto, si se copió al menos una imagen, y si
-    hay posible confusión de lado izquierdo/derecho. Devuelve una lista de
-    avisos (vacía si no encontró nada)."""
+    contenido no quedó vacío/muy corto, y si se copió al menos una imagen.
+    Devuelve una lista de avisos (vacía si no encontró nada)."""
     avisos = []
 
     if not nombre_detectado:
@@ -604,7 +600,7 @@ with col1:
     verificacion_activada = st.checkbox(
         "🔍 Verificar formato automáticamente al generar",
         value=False,
-        help="Revisa campos sin completar, secciones faltantes, texto demasiado corto, y posible confusión de lado izquierdo/derecho. No reemplaza la revisión clínica del transcriptor."
+        help="Revisa campos sin completar, secciones faltantes, texto demasiado corto, y posible confusión de lado (izquierda/derecha). No reemplaza la revisión clínica del transcriptor."
     )
 
 with col2:
@@ -662,7 +658,8 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
                     f"Eres un experto en medicina nuclear. Rellena la plantilla con el dictado. "
                     f"IMPORTANTE: no inventes ni infieras ningún dato que no esté explícitamente mencionado en el dictado.\n"
                     f"REGLA ESPECÍFICA PARA RESULTADOS: Si el doctor NO menciona el resultado de la 'PRUEBA DE CAPTACION' o cualquier campo marcado como 'RESULTADO:', déjalo strictly EN BLANCO (es decir, deja 'RESULTADO:' sin añadir nada a continuación). No escribas 'Dentro de límites normales', ni inventes valores o porcentajes.\n"
-                    f"Para los demás campos anatómicos o descriptivos no mencionados en el dictado, si la plantilla requiere completarlos, escribe exactamente 'Dentro de límites normales'. Nunca completes con información supuesta. Usa negritas (Markdown **) para los títulos."
+                    f"Para los demás campos anatómicos o descriptivos no mencionados en el dictado, si la plantilla requiere completarlos, escribe exactamente 'Dentro de límites normales'. Nunca completes con información supuesta. "
+                    f"No uses asteriscos (**) ni ningún otro símbolo de Markdown en ninguna parte del texto, ni siquiera en los títulos: escribe todo en texto plano."
                     f"{nota_multi_audio}"
                     f"{instrucciones_extra}\n"
                     f"DICTADO: {texto_transcrito}\n"
@@ -711,10 +708,7 @@ if audio_files and st.button("🚀 Procesar e Generar Informe"):
 
                 with caja_resultados:
                     st.success("✨ ¡Informe listo! (se guardó una copia en el historial)")
-                    st.markdown(response.text)
-                    st.markdown("---")
-                    st.text_area("Copiar para sistema:", value=response.text, height=200)
-                    st.download_button("📥 Descargar Informe (.txt)", data=response.text, file_name="informe_medico.txt", mime="text/plain")
+                    st.code(response.text, language=None, wrap_lines=True)
 
                     if verificacion_activada:
                         st.markdown("---")
@@ -761,7 +755,7 @@ nombre_para_guardar = st.text_input("Nombre para guardar el archivo (opcional, s
 verificacion_renal_activada = st.checkbox(
     "🔍 Verificar automáticamente al unir",
     value=False,
-    help="Revisa que se haya detectado el nombre del paciente, que el documento no quede vacío, que se hayan copiado imágenes, y posible confusión de lado izquierdo/derecho. No reemplaza la revisión clínica."
+    help="Revisa que se haya detectado el nombre del paciente, que el documento no quede vacío, que se hayan copiado imágenes, y posible confusión de lado (izquierda/derecha). No reemplaza la revisión clínica."
 )
 
 if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary"):
@@ -787,6 +781,9 @@ if doc_quijada and st.button("🔗 Unir y Guardar en Historial", type="primary")
             file_name=nombre_descarga,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
+        st.markdown("**Texto completo para copiar (sin imágenes):**")
+        st.code(extraer_solo_texto(merged_bytes.getvalue()), language=None, wrap_lines=True)
 
         if verificacion_renal_activada:
             advertencias_renal = verificar_informe_renal_basico(merged_bytes.getvalue(), nombre_detectado)
